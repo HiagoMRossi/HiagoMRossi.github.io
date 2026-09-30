@@ -167,13 +167,28 @@
   function restart() { engine.reset(); notice('Tudo pronto para um novo terço.'); }
   $('reset').onclick = () => { if (window.confirm('Recomeçar este terço do início?')) { restart(); $('settings').close(); } };
   $('again').onclick = restart;
+  function selectDefaultController() {
+    if (connected || connectionBusy) return;
+    if ($('light-profile').value !== 'sp105e') {
+      $('lights-status').textContent = 'Pronto para conectar o SP105E.';
+      $('lights-status').classList.remove('error');
+      $('ble-diagnostic').hidden = true;
+      $('last-command').textContent = '';
+    }
+    $('light-profile').value = 'sp105e';
+    $('advanced-controller').open = false;
+    activeProfile = 'sp105e';
+  }
   $('connect').onclick = () => {
     engine.pause(); stopEffectAndRestore();
+    selectDefaultController();
     updateLights(); $('lights').showModal();
   };
   function updateLights() {
     const profile = $('light-profile').value;
     const isBoard = profile === 'nucleo', isSp = profile === 'sp105e';
+    $('selected-controller').textContent = isSp ? 'SP105E' : isBoard ? 'NUCLEO · LED da placa' : 'NUCLEO · firmware TercoBLE';
+    $('lights-title').textContent = connected ? 'Controlar luzes' : isSp ? 'Conectar SP105E' : 'Conectar NUCLEO';
     $('strand-test').hidden = profile !== 'terco';
     $('board-test').hidden = !isBoard;
     $('sp105e-test').hidden = !isSp;
@@ -181,7 +196,7 @@
     const support = native ? '' : bluetooth.availability();
     $('ble-support').textContent = support || (native ? 'Bluetooth do aplicativo Android.' : 'Bluetooth disponível neste navegador. A seleção do dispositivo abre ao tocar no botão abaixo.');
     $('ble-support').classList.toggle('error', !!support);
-    $('pair').textContent = connected ? 'Desconectar dispositivo' : connectionBusy ? 'Conectando…' : isSp ? 'Conectar SP105E' : 'Escolher dispositivo Bluetooth';
+    $('pair').textContent = connected ? 'Desconectar dispositivo' : connectionBusy ? 'Conectando…' : isSp ? 'Conectar SP105E' : 'Conectar NUCLEO';
     $('pair').disabled = connectionBusy;
     $('pair-all').hidden = !!native || !isSp || connected;
     $('pair-all').disabled = connectionBusy;
@@ -192,7 +207,13 @@
     $('test-prev').disabled = value <= 1;
     $('test-next').disabled = value >= 59;
   }
-  $('light-profile').onchange = updateLights;
+  $('light-profile').onchange = () => {
+    $('lights-status').textContent = 'Nenhum dispositivo conectado.';
+    $('lights-status').classList.remove('error');
+    $('ble-diagnostic').hidden = true;
+    $('last-command').textContent = '';
+    updateLights();
+  };
   function chooseDevice(acceptAllDevices = false) {
     if (connectionBusy) return;
     engine.pause(); cancelEffect();
@@ -247,7 +268,7 @@
       connectionBusy = ['scanning', 'connecting', 'disconnecting'].includes(data.state);
       $('connection-status').classList.toggle('connected', connected);
       $('connection-status').innerHTML = '<i></i>' + (connected ? activeProfile === 'sp105e' ? 'SP105E · teste de cores' : activeProfile === 'nucleo' ? 'NUCLEO · teste' : 'Terço conectado' : data.state === 'scanning' ? 'Buscando…' : data.state === 'connecting' ? 'Conectando…' : 'Contas na tela');
-      $('connect').textContent = connected ? 'Luzes e conexão ↗' : 'Conectar luzes ↗';
+      $('connect').textContent = connected ? 'Controlar luzes' : 'Conectar SP105E';
       if (wasConnected && !connected) { engine.pause(); cancelEffect(); render(engine.snapshot()); }
       if (connected) { if (activeProfile === 'nucleo') board(false); else if (activeProfile === 'terco') led(engine.finished ? null : engine.step.bead); }
       $('lights-status').textContent = data.message || (connected ? 'Placa conectada.' : 'Nenhuma placa conectada.');
@@ -264,8 +285,11 @@
     if (document.hidden) { engine.pause(); cancelEffect(); if (activeProfile === 'nucleo') board(false); else send(engine.finished || engine.step.bead === null ? 0 : 1, engine.finished ? null : engine.step.bead); }
   });
   window.addEventListener('pagehide', () => { engine.pause(); cancelEffect(); });
+  // Uma seleção restaurada pelo navegador não deve trocar o controlador principal.
+  window.addEventListener('pageshow', () => { selectDefaultController(); updateLights(); });
   if (!voiceReady && !native) notice('Este navegador não oferece narração. Teste no Chrome ou no aplicativo Android.', true);
   render(engine.snapshot());
+  selectDefaultController();
   updateLights();
   if (native) native.ready();
 })();

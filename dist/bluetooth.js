@@ -65,7 +65,7 @@
     return {
       state: name === 'NotFoundError' && beforeSelection ? 'disconnected' : 'error',
       message,
-      diagnostic: ['Lumen web 0.3.1', 'Etapa: ' + stage, 'Busca: ' + (broad ? 'sem filtro' : 'por nome/serviço'), 'Erro: ' + name, 'Detalhe do Chrome: ' + String(error.message || '(não informado)').slice(0, 700)].join('\n')
+      diagnostic: ['Lumen web 0.3.2', 'Etapa: ' + stage, 'Busca: ' + (broad ? 'sem filtro' : 'por nome/serviço'), 'Erro: ' + name, 'Detalhe do Chrome: ' + String(error.message || '(não informado)').slice(0, 700)].join('\n')
     };
   }
   class WebBle {
