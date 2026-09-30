@@ -183,6 +183,8 @@
     $('ble-support').classList.toggle('error', !!support);
     $('pair').textContent = connected ? 'Desconectar dispositivo' : connectionBusy ? 'Conectando…' : isSp ? 'Conectar SP105E' : 'Escolher dispositivo Bluetooth';
     $('pair').disabled = connectionBusy;
+    $('pair-all').hidden = !!native || !isSp || connected;
+    $('pair-all').disabled = connectionBusy;
     $('light-profile').disabled = connected || connectionBusy;
     $('board-on').disabled = $('board-off').disabled = !connected || activeProfile !== 'nucleo';
     document.querySelectorAll('[data-sp-action]').forEach(button => { button.disabled = !connected || activeProfile !== 'sp105e' || lightBusy || connectionBusy; });
@@ -191,14 +193,19 @@
     $('test-next').disabled = value >= 59;
   }
   $('light-profile').onchange = updateLights;
-  $('pair').onclick = () => {
+  function chooseDevice(acceptAllDevices = false) {
+    if (connectionBusy) return;
     engine.pause(); cancelEffect();
     if (connected) { if (native) native.disconnect(); else webBle.disconnect(); return; }
     activeProfile = $('light-profile').value;
     $('last-command').textContent = '';
+    $('ble-diagnostic').hidden = true;
+    $('ble-diagnostic-text').textContent = '';
     if (native) native.connectProfile(activeProfile);
-    else webBle.connect(activeProfile);
-  };
+    else webBle.connect(activeProfile, { acceptAllDevices });
+  }
+  $('pair').onclick = () => chooseDevice();
+  $('pair-all').onclick = () => chooseDevice(true);
   function testLight() {
     const value = Number($('test-bead').value);
     if (!Number.isInteger(value) || value < 1 || value > 59) { $('last-command').textContent = 'Escolha um número inteiro de 1 a 59.'; return; }
@@ -245,6 +252,10 @@
       if (connected) { if (activeProfile === 'nucleo') board(false); else if (activeProfile === 'terco') led(engine.finished ? null : engine.step.bead); }
       $('lights-status').textContent = data.message || (connected ? 'Placa conectada.' : 'Nenhuma placa conectada.');
       $('lights-status').classList.toggle('error', data.state === 'error');
+      if (data.diagnostic) {
+        $('ble-diagnostic').hidden = false;
+        $('ble-diagnostic-text').textContent = data.diagnostic;
+      }
       updateLights();
       notice(data.message || (connected ? 'Terço conectado. Toque em Continuar para rezar.' : 'Sem terço conectado.'), data.state === 'error');
     }

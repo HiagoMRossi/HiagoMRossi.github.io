@@ -45,12 +45,35 @@
     let timer;
     return Promise.race([promise, new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(message)), timeout); })]).finally(() => clearTimeout(timer));
   }
+  function connectionFailure(error, stage, profile, broad = false) {
+    const name = error.name || 'Error';
+    const beforeSelection = stage === 'selection';
+    let message;
+    if (name === 'NotFoundError' && beforeSelection) {
+      message = 'O Chrome encerrou a busca sem selecionar um dispositivo. ' +
+        (profile === 'sp105e' && !broad ? 'Se a lista estava vazia, tente Buscar sem filtro. ' : '') +
+        'Se a janela nem abriu, confira as permissões de Dispositivos próximos do Chrome.';
+    } else if (name === 'SecurityError' || name === 'NotAllowedError') {
+      message = 'O acesso ao Bluetooth foi bloqueado. Abra o link diretamente no Chrome e confira as permissões de Dispositivos próximos do navegador.';
+    } else if (name === 'NotFoundError') {
+      message = 'O dispositivo foi selecionado, mas o serviço de luz esperado não foi encontrado. Confira se escolheu o controlador correto.';
+    } else if (name === 'NotSupportedError') {
+      message = 'Este navegador ou sistema não disponibilizou o acesso Bluetooth necessário. Tente pelo Chrome no Android.';
+    } else if (profile === 'sp105e') {
+      message = 'O SP105E não concluiu a conexão. Desconecte e feche o Magic-LED, confira a alimentação e tente novamente.';
+    } else message = error.message || 'Não foi possível conectar ao dispositivo.';
+    return {
+      state: name === 'NotFoundError' && beforeSelection ? 'disconnected' : 'error',
+      message,
+      diagnostic: ['Lumen web 0.3.1', 'Etapa: ' + stage, 'Busca: ' + (broad ? 'sem filtro' : 'por nome/serviço'), 'Erro: ' + name, 'Detalhe do Chrome: ' + String(error.message || '(não informado)').slice(0, 700)].join('\n')
+    };
+  }
   class WebBle {
     constructor({ navigator = root.navigator, secure = root.isSecureContext, onStatus = () => {}, onWrite = () => {}, timeout = 7000 } = {}) {
       this.nav = navigator; this.secure = secure; this.onStatus = onStatus; this.onWrite = onWrite; this.timeout = timeout;
       this.epoch = 0; this.connected = false; this.device = null; this.characteristic = null; this.profile = 'terco'; this.pending = null; this.pumpEpoch = null; this.closing = false;
     }
-    status(state, message) { this.onStatus({ state, message, profile: this.profile }); }
+    status(state, message, diagnostic = '') { this.onStatus({ state, message, profile: this.profile, diagnostic }); }
     cleanup() {
       this.epoch++;
       this.connected = false; this.characteristic = null; this.closing = false;
@@ -64,20 +87,23 @@
       }
     }
     fail(message) { this.cleanup(); this.status('error', message); }
-    async connect(profile = 'terco') {
+    async connect(profile = 'terco', { acceptAllDevices = false } = {}) {
       const unavailable = availability(this.nav, this.secure);
       if (unavailable) { this.status('error', unavailable); return false; }
       if (!Object.prototype.hasOwnProperty.call(profiles, profile)) { this.status('error', 'Escolha um tipo de conexão válido.'); return false; }
+      if (acceptAllDevices && profile !== 'sp105e') { this.status('error', 'A busca sem filtro é um teste para o SP105E.'); return false; }
       this.cleanup(); this.profile = profile;
       const expected = this.epoch, spec = profiles[profile];
-      this.status('scanning', profile === 'sp105e' ? 'Escolha o seu SP105E na janela de Bluetooth.' : 'Escolha a sua placa na janela de Bluetooth.');
+      let stage = 'selection';
+      this.status('scanning', acceptAllDevices ? 'Busca sem filtro: selecione somente o seu controlador de LEDs.' : profile === 'sp105e' ? 'Escolha o seu SP105E na janela de Bluetooth.' : 'Escolha a sua placa na janela de Bluetooth.');
       try {
         // A chamada deve ocorrer no clique, antes de qualquer await ou timer.
-        const device = await this.nav.bluetooth.requestDevice({
-          filters: [{ services: [spec.service] }, ...spec.names.map(namePrefix => ({ namePrefix }))],
-          optionalServices: [spec.service]
-        });
+        const query = { optionalServices: [spec.service] };
+        if (acceptAllDevices) query.acceptAllDevices = true;
+        else query.filters = [{ services: [spec.service] }, ...spec.names.map(namePrefix => ({ namePrefix }))];
+        const device = await this.nav.bluetooth.requestDevice(query);
         if (this.epoch !== expected) return false;
+        stage = 'connection';
         if (!device.gatt) throw new Error('O dispositivo não oferece Bluetooth Low Energy.');
         this.device = device;
         this.disconnectHandler = () => { if (this.epoch === expected) { this.cleanup(); this.status('error', 'A placa desconectou. A oração foi pausada.'); } };
@@ -88,7 +114,9 @@
           return server;
         });
         const server = await timed(opening, this.timeout * 2, 'A placa não respondeu à conexão.');
+        stage = 'service';
         const service = await timed(server.getPrimaryService(spec.service), this.timeout, 'A placa não respondeu à descoberta de serviços.');
+        stage = 'characteristic';
         const characteristic = await timed(service.getCharacteristic(spec.characteristic), this.timeout, 'A característica de luz não respondeu.');
         if (this.epoch !== expected) return false;
         const method = spec.response ? 'writeValueWithResponse' : 'writeValueWithoutResponse';
@@ -99,13 +127,8 @@
         return true;
       } catch (error) {
         if (this.epoch !== expected) return false;
-        const cancelled = error.name === 'NotFoundError' && !this.device;
-        const message = cancelled ? 'Seleção cancelada ou nenhuma placa encontrada. Você pode continuar na tela.'
-          : error.name === 'SecurityError' ? 'O navegador bloqueou o Bluetooth. Abra a página diretamente no Chrome por HTTPS.'
-          : error.name === 'NotFoundError' ? 'O serviço esperado não foi encontrado. Confira o dispositivo e o modo selecionados.'
-          : profile === 'sp105e' ? 'Não foi possível conectar ao SP105E. Desconecte e feche o Magic-LED, aproxime o celular e tente novamente. ' + (error.message || '')
-          : error.message || 'Não foi possível conectar à placa.';
-        this.cleanup(); this.status(cancelled ? 'disconnected' : 'error', message); return false;
+        const failure = connectionFailure(error, stage, profile, acceptAllDevices);
+        this.cleanup(); this.status(failure.state, failure.message, failure.diagnostic); return false;
       }
     }
     command(opcode, bead, brightness) {
@@ -168,7 +191,7 @@
       this.cleanup(); this.status('disconnected', 'Placa desconectada. Você pode continuar na tela.');
     }
   }
-  const api = { profiles, packet, sp105ePacket, availability, WebBle };
+  const api = { profiles, packet, sp105ePacket, availability, connectionFailure, WebBle };
   root.TercoBluetooth = api;
   if (typeof module !== 'undefined') module.exports = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);
