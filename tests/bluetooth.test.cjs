@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { WebBle, packet, sp105ePacket, profiles, availability } = require('../dist/bluetooth.js');
+const { WebBle, packet, sp105ePacket, sp105eRgbPacket, profiles, availability } = require('../dist/bluetooth.js');
 const { PrayerEngine } = require('../dist/core.js');
 const tick = () => new Promise(resolve => setImmediate(resolve));
 
@@ -92,6 +92,27 @@ test('SP105E rejeita toggle concorrente e desconecta com preto após envio pende
   assert.deepEqual(f.writes.map(x => x.bytes[4]), [0xaa, 0x1e]);
   releases.shift()(); await toggle; await closing;
   assert.equal(f.maxInFlight, 1); assert.equal(f.ble.connected, false);
+});
+test('RGB do acompanhamento é limitado e só usa o SP105E sem alterar sua configuração', async () => {
+  const f = fixture(); await f.ble.connect('sp105e');
+  assert.equal(await f.ble.sp105eRgb([6, 4, 2]), true);
+  assert.deepEqual(f.writes.at(-1), { bytes: [0x38, 6, 4, 2, 0x1e], response: false });
+  for (const rgb of [[33, 0, 0], [-1, 0, 0], [1.5, 0, 0], [0, 0], [0, 0, 0, 0], null]) assert.throws(() => sp105eRgbPacket(rgb));
+  f.ble.cleanup(); await f.ble.connect('nucleo');
+  assert.equal(await f.ble.sp105eRgb([6, 4, 2]), false);
+  assert.equal(f.writes.length, 1); f.ble.cleanup();
+});
+test('apagar durante envio RGB substitui estados pendentes e não sobrepõe escritas', async () => {
+  const releases = [], f = fixture({ writer: () => new Promise(resolve => releases.push(resolve)) });
+  await f.ble.connect('sp105e');
+  const first = f.ble.sp105eRgb([32, 22, 10]);
+  const pending = f.ble.sp105eRgb([16, 11, 5]);
+  const off = f.ble.sp105eRgb([0, 0, 0]);
+  assert.equal(await pending, false);
+  releases.shift()(); await tick();
+  assert.deepEqual(f.writes.at(-1).bytes, [0x38, 0, 0, 0, 0x1e]);
+  releases.shift()(); assert.equal(await first, true); assert.equal(await off, true);
+  assert.equal(f.maxInFlight, 1); f.ble.cleanup();
 });
 test('comandos SP105E não vazam para outros perfis e não aceitam parâmetros arbitrários', async () => {
   for (const profile of ['terco', 'nucleo']) {

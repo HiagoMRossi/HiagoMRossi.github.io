@@ -89,7 +89,11 @@
       if (!this.playing || !id || id !== this.activeId) return;
       this.activeId = null;
       if (++this.phrase < this.step.phrases.length) this.speak();
-      else this.move(1);
+      else {
+        // Só a narração concluída dispara a pulsação; avançar manualmente não.
+        if (this.host.completed) this.host.completed(this.snapshot());
+        this.move(1);
+      }
     }
     error(id, message) {
       if (id !== this.activeId) return;

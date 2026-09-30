@@ -6,12 +6,13 @@
   <meta name="theme-color" content="#f6f3eb">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; base-uri 'none'; form-action 'none'">
   <title>Lumen · Terço guiado</title>
-  <meta name="description" content="Terço guiado por voz e teste de luzes Bluetooth SP105E.">
+  <meta name="description" content="Terço guiado por voz com acompanhamento dos 34 LEDs juntos pelo SP105E.">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20rx%3D%228%22%20fill%3D%22%23183f37%22%2F%3E%3Cpath%20d%3D%22M14%206h4v8h7v4h-7v8h-4v-8H7v-4h7z%22%20fill%3D%22%23ffb452%22%2F%3E%3C%2Fsvg%3E">
-  <link rel="stylesheet" href="style.css?v=0.3.2">
-  <script src="core.js?v=0.3.2" defer></script>
-  <script src="bluetooth.js?v=0.3.2" defer></script>
-  <script src="app.js?v=0.3.2" defer></script>
+  <link rel="stylesheet" href="style.css?v=0.4.0">
+  <script src="core.js?v=0.4.0" defer></script>
+  <script src="bluetooth.js?v=0.4.0" defer></script>
+  <script src="guided-lights.js?v=0.4.0" defer></script>
+  <script src="app.js?v=0.4.0" defer></script>
 </head>
 <body>
 <main class="app">
@@ -31,7 +32,7 @@
   <section id="completion" class="completion" hidden><div aria-hidden="true">✦</div><h2>Terço concluído.</h2><p>Que a paz acompanhe o seu dia.</p><button id="again" class="text-button">Rezar novamente</button></section>
   <footer class="controls"><div class="player"><button id="previous" class="icon-button" aria-label="Oração anterior"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5v14M18 5l-9 7 9 7z"/></svg></button><button id="play" class="play-button"><span id="play-symbol" aria-hidden="true">▶</span><span id="play-label">Iniciar terço</span></button><button id="next" class="icon-button" aria-label="Próxima oração"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 5v14M6 5l9 7-9 7z"/></svg></button></div><p id="player-hint">Voz em português · Avanço automático</p></footer>
 </main>
-<dialog id="settings"><form method="dialog"><div class="dialog-header"><h2>Do seu jeito.</h2><button class="icon-button" aria-label="Fechar ajustes">✕</button></div></form><label class="setting">Velocidade da voz <output id="rate-label">0,85×</output><input id="rate" type="range" min="0.65" max="1.15" step="0.05" value="0.85"></label><label class="setting">Brilho das contas <output id="brightness-label">50%</output><input id="brightness" type="range" min="1" max="100" value="50"></label><p class="small">O brilho é limitado nesta versão de bancada. Ao retomar, a frase interrompida começa de novo.</p><button id="effect" class="secondary-button">Ver efeito de encerramento</button><button id="reset" class="text-button danger">Recomeçar este terço</button><p class="small">Esta versão pausa ao sair do aplicativo. Use com a tela aberta. O progresso fica salvo neste aparelho.</p><div id="native-help" class="help"><strong>Conectar ao terço físico</strong><p>Use Conectar SP105E para conectar seu controlador e testar as cores do cordão. A sequência de contas individuais ainda não está disponível para ele. As opções de outras placas ficam na área avançada.</p></div><button id="install-voice" class="text-button" hidden>Configurar voz em português</button><p class="version">LUMEN · PROTÓTIPO 0.3.2</p></dialog>
+<dialog id="settings"><form method="dialog"><div class="dialog-header"><h2>Do seu jeito.</h2><button class="icon-button" aria-label="Fechar ajustes">✕</button></div></form><label class="setting">Velocidade da voz <output id="rate-label">0,85×</output><input id="rate" type="range" min="0.65" max="1.15" step="0.05" value="0.85"></label><label class="setting">Brilho das contas · NUCLEO <output id="brightness-label">50%</output><input id="brightness" type="range" min="1" max="100" value="50"></label><p class="small">O brilho é limitado nesta versão de bancada. Ao retomar, a frase interrompida começa de novo.</p><button id="effect" class="secondary-button">Ver efeito de encerramento</button><button id="reset" class="text-button danger">Recomeçar este terço</button><p class="small">Esta versão pausa ao sair do aplicativo. Use com a tela aberta. O progresso fica salvo neste aparelho.</p><div id="native-help" class="help"><strong>Conectar ao terço físico</strong><p>Use Conectar SP105E para rezar com os 34 LEDs juntos e testar as cores do cordão. A sequência de contas individuais ainda não está disponível para ele. As opções de outras placas ficam na área avançada.</p></div><button id="install-voice" class="text-button" hidden>Configurar voz em português</button><p class="version">LUMEN · PROTÓTIPO 0.4.0</p></dialog>
 <dialog id="lights"><form method="dialog"><div class="dialog-header"><h2 id="lights-title">Conectar SP105E</h2><button class="icon-button" aria-label="Fechar controles de luz">✕</button></div></form>
   <p class="small">A oração fica pausada enquanto você testa as luzes.</p>
   <div class="controller-choice"><span class="eyebrow">CONTROLADOR</span><strong id="selected-controller">SP105E</strong></div>
@@ -39,10 +40,19 @@
   <p id="ble-support" class="small"></p>
   <button id="pair" class="secondary-button">Conectar SP105E</button>
   <button id="pair-all" class="secondary-button">Não apareceu? Buscar sem filtro</button>
-  <p class="small">Na janela do Chrome, toque no seu controlador e depois em Parear ou Conectar. A busca sem filtro também mostra outros dispositivos próximos.</p>
-  <details class="ble-help"><summary>Se a busca não abrir ou ficar vazia</summary><ol><li>Desconecte e feche o Magic-LED.</li><li>No Poco, segure o ícone do Chrome, abra Informações do app → Permissões e permita Dispositivos próximos, se essa opção existir.</li><li>Se o Chrome solicitar localização para buscar dispositivos, autorize durante o uso e ative a localização do celular.</li><li>Confira o Bluetooth e a alimentação do SP105E; aproxime o celular e tente de novo.</li></ol></details>
+  <div id="connection-help"><p class="small">Na janela do Chrome, toque no seu controlador e depois em Parear ou Conectar. A busca sem filtro também mostra outros dispositivos próximos.</p>
+  <details class="ble-help"><summary>Se a busca não abrir ou ficar vazia</summary><ol><li>Desconecte e feche o Magic-LED.</li><li>No Poco, segure o ícone do Chrome, abra Informações do app → Permissões e permita Dispositivos próximos, se essa opção existir.</li><li>Se o Chrome solicitar localização para buscar dispositivos, autorize durante o uso e ative a localização do celular.</li><li>Confira o Bluetooth e a alimentação do SP105E; aproxime o celular e tente de novo.</li></ol></details></div>
   <p id="lights-status" class="small" role="status">Nenhum dispositivo conectado.</p>
   <section id="sp105e-test" class="light-test">
+    <div id="sp-guide" class="guide-card">
+      <span class="eyebrow">TERÇO COM 34 LEDS</span>
+      <h3>A luz acompanha a voz.</h3>
+      <label class="guide-toggle"><input id="guide-enabled" type="checkbox" checked> Acompanhar oração com as luzes</label>
+      <p class="small">Os 34 LEDs acendem juntos em dourado. Uma pulsação marca o fim de cada Ave-Maria; três pulsações encerram o terço. A contagem das orações continua na tela.</p>
+      <button id="sp-pulse" class="secondary-button" disabled>Testar uma pulsação</button>
+      <button id="sp-start" class="secondary-button" disabled>Rezar com os 34 LEDs</button>
+      <p class="small">Conecte e teste antes de começar. Ao pausar, o app envia apagar. Mantenha esta página aberta durante a oração.</p>
+    </div>
     <span class="eyebrow">TESTE DO CORDÃO INTEIRO</span>
     <p class="small">Toque em uma cor. Se não acender, toque uma vez em Ligar / desligar. Os comandos usam as configurações de LEDs já salvas no controlador.</p>
     <div class="sp-colors"><button class="secondary-button" data-sp-action="red" disabled>Vermelho</button><button class="secondary-button" data-sp-action="green" disabled>Verde</button><button class="secondary-button" data-sp-action="blue" disabled>Azul</button><button class="secondary-button" data-sp-action="gold" disabled>Dourado</button></div>

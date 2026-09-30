@@ -4,12 +4,17 @@
   const native = window.NativeTerco;
   const model = window.Terco;
   const bluetooth = window.TercoBluetooth;
-  let activeProfile = 'sp105e', connectionBusy = false, lightBusy = false;
+  let activeProfile = 'sp105e', connectionBusy = false, lightBusy = false, cueBusy = false, startAfterLights = false;
   const webBle = native ? null : new bluetooth.WebBle({
     onStatus: data => window.nativeEvent('ble', data),
     onWrite: () => { $('last-command').textContent = 'Comando enviado por Bluetooth. Confira o resultado nos LEDs.'; }
   });
   let connected = false, effectFrame = null, effectActive = false;
+  const guided = native ? null : new window.TercoLights.GuidedLights({
+    available: () => connected && activeProfile === 'sp105e' && $('guide-enabled').checked && !document.hidden,
+    write: rgb => connected && activeProfile === 'sp105e' ? webBle.sp105eRgb(rgb) : Promise.resolve(false),
+    onBusy: busy => { cueBusy = busy; updateLights(); }
+  });
   let brightness = 32, voiceReady = !native && ('speechSynthesis' in window), currentUtterance = null;
   let lastStep = -1;
   const nodes = [];
@@ -49,11 +54,12 @@
     $('last-command').textContent = on ? 'Acendimento do LED azul solicitado.' : 'Desligamento do LED azul solicitado.';
   }
   async function testSp105e(action) {
-    if (!connected || activeProfile !== 'sp105e' || lightBusy || connectionBusy) return;
+    if (!connected || activeProfile !== 'sp105e' || lightBusy || cueBusy || connectionBusy) return;
     lightBusy = true; updateLights();
     $('last-command').textContent = 'Enviando o teste…';
     if (native) { native.testSp105e(action); return; }
     try {
+      await guided.stop();
       const sent = await webBle.sp105e(action);
       if (sent) $('last-command').textContent = action === 'toggle' ? 'Alternância enviada. Confira se o cordão ligou ou desligou.' : action === 'black' ? 'Cor preta enviada para apagar o cordão.' : 'Cor enviada. Se não acender, toque uma vez em Ligar / desligar.';
       else if (connected) $('last-command').textContent = 'O comando não foi enviado. Aguarde e tente novamente.';
@@ -77,6 +83,7 @@
   function led(bead) { cancelEffect(); paintLed(bead); send(bead === null ? 0 : 1, bead); }
   function celebration() {
     cancelEffect(); effectActive = true; send(2);
+    if (guided) guided.pulse(3, true);
     const start = performance.now();
     function frame(now) {
       const elapsed = now - start;
@@ -109,7 +116,8 @@
     },
     stop() { if (native) native.stop(); else if ('speechSynthesis' in window) speechSynthesis.cancel(); currentUtterance = null; },
     led,
-    change(state) { render(state); },
+    change(state) { if (guided) guided.sync(state); render(state); },
+    completed(state) { if (guided) guided.completed(state.step); },
     finish() { notice('Oração concluída. Um instante de luz para encerrar.'); celebration(); },
     error(message) { notice(message, true); }
   }, saved.group || model.suggestedGroup(), saved.index || 0);
@@ -146,11 +154,16 @@
     if (native) native.keepAwake(s.playing);
     try { localStorage.setItem('lumen-progress-v1', JSON.stringify({ group: s.group, index: s.finished ? 0 : s.index })); } catch (_) { /* Optional persistence. */ }
   }
-  function stopEffectAndRestore() { cancelEffect(); led(engine.finished ? null : engine.step.bead); }
+  function stopEffectAndRestore() { cancelEffect(); if (guided) guided.stop(); led(engine.finished ? null : engine.step.bead); }
+  function startPrayer() {
+    const spGuide = guided && connected && activeProfile === 'sp105e' && $('guide-enabled').checked;
+    notice(spGuide ? 'Os 34 LEDs acompanham juntos. Cada Ave-Maria concluída ganha uma pulsação.' : connected && activeProfile === 'terco' ? 'A voz e o terço estão acompanhando a oração.' : 'Acompanhe as contas na tela. Você pode conectar as luzes depois.');
+    engine.start();
+  }
   $('play').onclick = () => {
     stopEffectAndRestore();
     if (engine.playing) { engine.pause(); notice('Pausado. Ao continuar, repetimos a frase interrompida.'); }
-    else { notice(connected && activeProfile === 'terco' ? 'A voz e o terço estão acompanhando a oração.' : 'Acompanhe as contas na tela. Você pode conectar o terço depois.'); engine.start(); }
+    else startPrayer();
   };
   $('previous').onclick = () => { stopEffectAndRestore(); engine.move(-1); notice('Oração anterior.'); };
   $('next').onclick = () => { stopEffectAndRestore(); engine.move(1); if (!engine.finished) notice('Próxima oração.'); };
@@ -187,11 +200,14 @@
   function updateLights() {
     const profile = $('light-profile').value;
     const isBoard = profile === 'nucleo', isSp = profile === 'sp105e';
-    $('selected-controller').textContent = isSp ? 'SP105E' : isBoard ? 'NUCLEO · LED da placa' : 'NUCLEO · firmware TercoBLE';
+    $('selected-controller').textContent = isSp ? 'SP105E · 34 LEDs' : isBoard ? 'NUCLEO · LED da placa' : 'NUCLEO · firmware TercoBLE';
     $('lights-title').textContent = connected ? 'Controlar luzes' : isSp ? 'Conectar SP105E' : 'Conectar NUCLEO';
     $('strand-test').hidden = profile !== 'terco';
     $('board-test').hidden = !isBoard;
-    $('sp105e-test').hidden = !isSp;
+    $('sp105e-test').hidden = !isSp || !connected;
+    $('connection-help').hidden = connected;
+    $('profile-help').hidden = connected;
+    $('ble-support').hidden = connected;
     $('profile-help').textContent = isSp ? 'O Lumen conecta diretamente ao SP105E. Desconecte e feche o Magic-LED antes de selecionar o controlador aqui.' : isBoard ? 'Liga e apaga o LED azul da própria NUCLEO com a demonstração de fábrica BLE_p2pServer.' : 'Requer a NUCLEO com o firmware TercoBLE e o cordão ligado corretamente.';
     const support = native ? '' : bluetooth.availability();
     $('ble-support').textContent = support || (native ? 'Bluetooth do aplicativo Android.' : 'Bluetooth disponível neste navegador. A seleção do dispositivo abre ao tocar no botão abaixo.');
@@ -202,7 +218,13 @@
     $('pair-all').disabled = connectionBusy;
     $('light-profile').disabled = connected || connectionBusy;
     $('board-on').disabled = $('board-off').disabled = !connected || activeProfile !== 'nucleo';
-    document.querySelectorAll('[data-sp-action]').forEach(button => { button.disabled = !connected || activeProfile !== 'sp105e' || lightBusy || connectionBusy; });
+    document.querySelectorAll('[data-sp-action]').forEach(button => { button.disabled = !connected || activeProfile !== 'sp105e' || lightBusy || cueBusy || connectionBusy; });
+    $('sp-guide').hidden = !!native;
+    const canGuide = !!guided && connected && activeProfile === 'sp105e' && !lightBusy && !cueBusy && !connectionBusy && $('guide-enabled').checked;
+    $('sp-pulse').disabled = !canGuide;
+    $('sp-start').disabled = !canGuide || !voiceReady;
+    $('guide-enabled').disabled = lightBusy || connectionBusy;
+    $('player-hint').textContent = connected && activeProfile === 'sp105e' && guided && $('guide-enabled').checked ? '34 LEDs juntos · Contagem das orações na tela' : 'Voz em português · Avanço automático';
     const value = Number($('test-bead').value);
     $('test-prev').disabled = value <= 1;
     $('test-next').disabled = value >= 59;
@@ -241,9 +263,20 @@
   $('board-on').onclick = () => board(true);
   $('board-off').onclick = () => board(false);
   document.querySelectorAll('[data-sp-action]').forEach(button => { button.onclick = () => testSp105e(button.dataset.spAction); });
+  $('guide-enabled').onchange = () => { if (guided) guided.stop(); updateLights(); };
+  $('sp-pulse').onclick = async () => {
+    if (!guided || $('sp-pulse').disabled) return;
+    $('last-command').textContent = 'Enviando uma pulsação para o cordão inteiro…';
+    if (await guided.pulse(1, true)) $('last-command').textContent = 'Pulsação enviada. Se não acendeu, toque uma vez em Ligar / desligar e teste de novo.';
+  };
+  $('sp-start').onclick = () => {
+    if ($('sp-start').disabled) return;
+    startAfterLights = true; $('lights').close();
+  };
   $('lights').addEventListener('close', () => {
     if (activeProfile === 'nucleo') board(false);
     stopEffectAndRestore(); render(engine.snapshot());
+    if (startAfterLights) { startAfterLights = false; startPrayer(); }
   });
   $('install-voice').onclick = () => { if (native) native.installVoice(); };
   window.nativeEvent = (name, data) => {
@@ -267,7 +300,7 @@
       lightBusy = false;
       connectionBusy = ['scanning', 'connecting', 'disconnecting'].includes(data.state);
       $('connection-status').classList.toggle('connected', connected);
-      $('connection-status').innerHTML = '<i></i>' + (connected ? activeProfile === 'sp105e' ? 'SP105E · teste de cores' : activeProfile === 'nucleo' ? 'NUCLEO · teste' : 'Terço conectado' : data.state === 'scanning' ? 'Buscando…' : data.state === 'connecting' ? 'Conectando…' : 'Contas na tela');
+      $('connection-status').innerHTML = '<i></i>' + (connected ? activeProfile === 'sp105e' ? 'SP105E · 34 LEDs' : activeProfile === 'nucleo' ? 'NUCLEO · teste' : 'Terço conectado' : data.state === 'scanning' ? 'Buscando…' : data.state === 'connecting' ? 'Conectando…' : 'Contas na tela');
       $('connect').textContent = connected ? 'Controlar luzes' : 'Conectar SP105E';
       if (wasConnected && !connected) { engine.pause(); cancelEffect(); render(engine.snapshot()); }
       if (connected) { if (activeProfile === 'nucleo') board(false); else if (activeProfile === 'terco') led(engine.finished ? null : engine.step.bead); }
@@ -284,7 +317,7 @@
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) { engine.pause(); cancelEffect(); if (activeProfile === 'nucleo') board(false); else send(engine.finished || engine.step.bead === null ? 0 : 1, engine.finished ? null : engine.step.bead); }
   });
-  window.addEventListener('pagehide', () => { engine.pause(); cancelEffect(); });
+  window.addEventListener('pagehide', () => { engine.pause(); cancelEffect(); if (guided) guided.stop(); });
   // Uma seleção restaurada pelo navegador não deve trocar o controlador principal.
   window.addEventListener('pageshow', () => { selectDefaultController(); updateLights(); });
   if (!voiceReady && !native) notice('Este navegador não oferece narração. Teste no Chrome ou no aplicativo Android.', true);

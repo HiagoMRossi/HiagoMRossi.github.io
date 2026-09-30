@@ -30,6 +30,10 @@
     if (!Object.prototype.hasOwnProperty.call(colors, action)) throw new Error('Teste SP105E inválido.');
     return Uint8Array.of(0x38, ...colors[action], 0x1e);
   }
+  function sp105eRgbPacket(rgb) {
+    if (!Array.isArray(rgb) || rgb.length !== 3 || !rgb.every(value => Number.isInteger(value) && value >= 0 && value <= 32)) throw new Error('Cor do acompanhamento fora do limite.');
+    return Uint8Array.of(0x38, ...rgb, 0x1e);
+  }
   function packet(opcode, bead, brightness) {
     if (!Number.isInteger(opcode) || opcode < 0 || opcode > 2) throw new Error('Comando de luz inválido.');
     if (!Number.isInteger(brightness) || brightness < 1 || brightness > 64) throw new Error('Brilho fora do limite.');
@@ -65,7 +69,7 @@
     return {
       state: name === 'NotFoundError' && beforeSelection ? 'disconnected' : 'error',
       message,
-      diagnostic: ['Lumen web 0.3.2', 'Etapa: ' + stage, 'Busca: ' + (broad ? 'sem filtro' : 'por nome/serviço'), 'Erro: ' + name, 'Detalhe do Chrome: ' + String(error.message || '(não informado)').slice(0, 700)].join('\n')
+      diagnostic: ['Lumen web 0.4.0', 'Etapa: ' + stage, 'Busca: ' + (broad ? 'sem filtro' : 'por nome/serviço'), 'Erro: ' + name, 'Detalhe do Chrome: ' + String(error.message || '(não informado)').slice(0, 700)].join('\n')
     };
   }
   class WebBle {
@@ -123,7 +127,7 @@
         const property = spec.response ? 'write' : 'writeWithoutResponse';
         if (!characteristic.properties[property] || typeof characteristic[method] !== 'function') throw new Error('A placa ou o navegador não oferece o tipo de escrita necessário.');
         this.characteristic = characteristic; this.connected = true;
-        this.status('connected', profile === 'sp105e' ? 'SP105E conectado. Teste uma cor abaixo; as contas individuais ainda não são controladas neste modo.' : profile === 'nucleo' ? 'Placa conectada para testar o LED azul. Esse teste não controla o cordão.' : 'Terço conectado. A conta atual será sincronizada.');
+        this.status('connected', profile === 'sp105e' ? 'SP105E conectado. Teste a pulsação e comece a oração com os 34 LEDs juntos.' : profile === 'nucleo' ? 'Placa conectada para testar o LED azul. Esse teste não controla o cordão.' : 'Terço conectado. A conta atual será sincronizada.');
         return true;
       } catch (error) {
         if (this.epoch !== expected) return false;
@@ -146,6 +150,11 @@
       // toggle na fila; o próximo clique deve esperar o envio atual terminar.
       if (this.pending || this.pumpEpoch !== null) return Promise.resolve(false);
       return this.enqueue(sp105ePacket(action));
+    }
+    sp105eRgb(rgb) {
+      if (this.profile !== 'sp105e') return Promise.resolve(false);
+      // Cores são estados idempotentes e usam a fila serial, inclusive ao pausar.
+      return this.enqueue(sp105eRgbPacket(rgb));
     }
     enqueue(bytes, closing = false) {
       if (!this.connected || !this.characteristic || this.closing && !closing) return Promise.resolve(false);
@@ -191,7 +200,7 @@
       this.cleanup(); this.status('disconnected', 'Placa desconectada. Você pode continuar na tela.');
     }
   }
-  const api = { profiles, packet, sp105ePacket, availability, connectionFailure, WebBle };
+  const api = { profiles, packet, sp105ePacket, sp105eRgbPacket, availability, connectionFailure, WebBle };
   root.TercoBluetooth = api;
   if (typeof module !== 'undefined') module.exports = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);
