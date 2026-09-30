@@ -1,0 +1,174 @@
+/* Transportes BLE TercoBLE, NUCLEO e SP105E. Sem conexão automática. */
+(function (root) {
+  'use strict';
+  const profiles = {
+    sp105e: {
+      service: '0000ffe0-0000-1000-8000-00805f9b34fb',
+      characteristic: '0000ffe1-0000-1000-8000-00805f9b34fb',
+      response: false,
+      names: ['SP105E', 'SP105e', 'sp105e']
+    },
+    terco: {
+      service: '8ec90001-f315-4f60-9fb8-838830daea50',
+      characteristic: '8ec90002-f315-4f60-9fb8-838830daea50',
+      response: true,
+      names: ['TercoBLE']
+    },
+    nucleo: {
+      // UUIDs e mensagens do BLE_p2pServer oficial para NUCLEO-WB05KZ.
+      service: '0000fe40-cc7a-482a-984a-7f2ed5b3e58f',
+      characteristic: '0000fe41-8e22-4541-9d4c-21edae82ed19',
+      response: false,
+      names: ['P2PSRV', 'p2pS']
+    }
+  };
+  function sp105ePacket(action) {
+    // Protocolo SP105E de 5 bytes; não usar o protocolo do SP108E/SP110E.
+    // Cores de teste atenuadas. Não altera IC, ordem RGB ou número de pixels.
+    const colors = { red: [32, 0, 0], green: [0, 32, 0], blue: [0, 0, 32], gold: [32, 22, 10], black: [0, 0, 0] };
+    if (action === 'toggle') return Uint8Array.of(0x38, 0, 0, 0, 0xaa);
+    if (!Object.prototype.hasOwnProperty.call(colors, action)) throw new Error('Teste SP105E inválido.');
+    return Uint8Array.of(0x38, ...colors[action], 0x1e);
+  }
+  function packet(opcode, bead, brightness) {
+    if (!Number.isInteger(opcode) || opcode < 0 || opcode > 2) throw new Error('Comando de luz inválido.');
+    if (!Number.isInteger(brightness) || brightness < 1 || brightness > 64) throw new Error('Brilho fora do limite.');
+    if (opcode === 1 && (!Number.isInteger(bead) || bead < 0 || bead > 58)) throw new Error('Escolha uma conta de 1 a 59.');
+    return Uint8Array.of(1, opcode, opcode === 1 ? bead : 255, brightness, 255, 180, 82, 0);
+  }
+  function availability(nav = root.navigator, secure = root.isSecureContext) {
+    if (!secure) return 'Para conectar por Bluetooth, abra esta página por HTTPS no Chrome. O arquivo local continua funcionando com as contas na tela.';
+    if (!nav || !nav.bluetooth || typeof nav.bluetooth.requestDevice !== 'function') return 'Este navegador não oferece acesso Bluetooth. Use o Chrome no Android com a página em HTTPS, ou o aplicativo Android.';
+    return '';
+  }
+  function timed(promise, timeout, message) {
+    let timer;
+    return Promise.race([promise, new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(message)), timeout); })]).finally(() => clearTimeout(timer));
+  }
+  class WebBle {
+    constructor({ navigator = root.navigator, secure = root.isSecureContext, onStatus = () => {}, onWrite = () => {}, timeout = 7000 } = {}) {
+      this.nav = navigator; this.secure = secure; this.onStatus = onStatus; this.onWrite = onWrite; this.timeout = timeout;
+      this.epoch = 0; this.connected = false; this.device = null; this.characteristic = null; this.profile = 'terco'; this.pending = null; this.pumpEpoch = null; this.closing = false;
+    }
+    status(state, message) { this.onStatus({ state, message, profile: this.profile }); }
+    cleanup() {
+      this.epoch++;
+      this.connected = false; this.characteristic = null; this.closing = false;
+      if (this.pending) this.pending.resolve(false);
+      this.pending = null;
+      const old = this.device;
+      this.device = null;
+      if (old) {
+        if (this.disconnectHandler) old.removeEventListener('gattserverdisconnected', this.disconnectHandler);
+        try { if (old.gatt && old.gatt.connected) old.gatt.disconnect(); } catch (_) { /* Device already gone. */ }
+      }
+    }
+    fail(message) { this.cleanup(); this.status('error', message); }
+    async connect(profile = 'terco') {
+      const unavailable = availability(this.nav, this.secure);
+      if (unavailable) { this.status('error', unavailable); return false; }
+      if (!Object.prototype.hasOwnProperty.call(profiles, profile)) { this.status('error', 'Escolha um tipo de conexão válido.'); return false; }
+      this.cleanup(); this.profile = profile;
+      const expected = this.epoch, spec = profiles[profile];
+      this.status('scanning', profile === 'sp105e' ? 'Escolha o seu SP105E na janela de Bluetooth.' : 'Escolha a sua placa na janela de Bluetooth.');
+      try {
+        // A chamada deve ocorrer no clique, antes de qualquer await ou timer.
+        const device = await this.nav.bluetooth.requestDevice({
+          filters: [{ services: [spec.service] }, ...spec.names.map(namePrefix => ({ namePrefix }))],
+          optionalServices: [spec.service]
+        });
+        if (this.epoch !== expected) return false;
+        if (!device.gatt) throw new Error('O dispositivo não oferece Bluetooth Low Energy.');
+        this.device = device;
+        this.disconnectHandler = () => { if (this.epoch === expected) { this.cleanup(); this.status('error', 'A placa desconectou. A oração foi pausada.'); } };
+        device.addEventListener('gattserverdisconnected', this.disconnectHandler);
+        this.status('connecting', 'Conectando à placa…');
+        const opening = device.gatt.connect().then(server => {
+          if (this.epoch !== expected) { if (server.connected) server.disconnect(); throw new Error('Conexão cancelada.'); }
+          return server;
+        });
+        const server = await timed(opening, this.timeout * 2, 'A placa não respondeu à conexão.');
+        const service = await timed(server.getPrimaryService(spec.service), this.timeout, 'A placa não respondeu à descoberta de serviços.');
+        const characteristic = await timed(service.getCharacteristic(spec.characteristic), this.timeout, 'A característica de luz não respondeu.');
+        if (this.epoch !== expected) return false;
+        const method = spec.response ? 'writeValueWithResponse' : 'writeValueWithoutResponse';
+        const property = spec.response ? 'write' : 'writeWithoutResponse';
+        if (!characteristic.properties[property] || typeof characteristic[method] !== 'function') throw new Error('A placa ou o navegador não oferece o tipo de escrita necessário.');
+        this.characteristic = characteristic; this.connected = true;
+        this.status('connected', profile === 'sp105e' ? 'SP105E conectado. Teste uma cor abaixo; as contas individuais ainda não são controladas neste modo.' : profile === 'nucleo' ? 'Placa conectada para testar o LED azul. Esse teste não controla o cordão.' : 'Terço conectado. A conta atual será sincronizada.');
+        return true;
+      } catch (error) {
+        if (this.epoch !== expected) return false;
+        const cancelled = error.name === 'NotFoundError' && !this.device;
+        const message = cancelled ? 'Seleção cancelada ou nenhuma placa encontrada. Você pode continuar na tela.'
+          : error.name === 'SecurityError' ? 'O navegador bloqueou o Bluetooth. Abra a página diretamente no Chrome por HTTPS.'
+          : error.name === 'NotFoundError' ? 'O serviço esperado não foi encontrado. Confira o dispositivo e o modo selecionados.'
+          : profile === 'sp105e' ? 'Não foi possível conectar ao SP105E. Desconecte e feche o Magic-LED, aproxime o celular e tente novamente. ' + (error.message || '')
+          : error.message || 'Não foi possível conectar à placa.';
+        this.cleanup(); this.status(cancelled ? 'disconnected' : 'error', message); return false;
+      }
+    }
+    command(opcode, bead, brightness) {
+      if (this.profile !== 'terco') return Promise.resolve(false);
+      const bytes = packet(opcode, bead, brightness);
+      return this.enqueue(bytes);
+    }
+    board(on) {
+      if (this.profile !== 'nucleo') return Promise.resolve(false);
+      return this.enqueue(Uint8Array.of(1, on ? 1 : 0));
+    }
+    sp105e(action) {
+      if (this.profile !== 'sp105e') return Promise.resolve(false);
+      // O toggle é uma ação, não um estado. Nunca substituir nem repetir um
+      // toggle na fila; o próximo clique deve esperar o envio atual terminar.
+      if (this.pending || this.pumpEpoch !== null) return Promise.resolve(false);
+      return this.enqueue(sp105ePacket(action));
+    }
+    enqueue(bytes, closing = false) {
+      if (!this.connected || !this.characteristic || this.closing && !closing) return Promise.resolve(false);
+      return new Promise(resolve => {
+        // Só o último estado pendente interessa; nunca reproduzir uma fila antiga.
+        if (this.pending) this.pending.resolve(false);
+        this.pending = { bytes, resolve };
+        this.pump(this.epoch);
+      });
+    }
+    async pump(expected) {
+      if (this.pumpEpoch === expected) return;
+      this.pumpEpoch = expected;
+      try {
+        while (this.connected && this.epoch === expected && this.pending) {
+          const item = this.pending; this.pending = null;
+          const spec = profiles[this.profile];
+          try {
+            const method = spec.response ? 'writeValueWithResponse' : 'writeValueWithoutResponse';
+            await timed(this.characteristic[method](item.bytes), this.timeout, 'A placa não respondeu ao envio.');
+            if (this.epoch !== expected) { item.resolve(false); return; }
+            item.resolve(true);
+            this.onWrite({ profile: this.profile, bytes: Array.from(item.bytes), response: spec.response });
+          } catch (error) {
+            item.resolve(false);
+            if (this.epoch === expected) this.fail('Falha ao enviar a luz. A oração foi pausada. ' + (error.message || ''));
+            return;
+          }
+        }
+      } finally { if (this.pumpEpoch === expected) this.pumpEpoch = null; }
+    }
+    async disconnect() {
+      if (this.closing) return;
+      const expected = this.epoch;
+      if (this.connected) {
+        this.closing = true;
+        this.status('disconnecting', 'Enviando apagar e desconectando…');
+        // Preto é idempotente; AA apenas alterna e poderia ligar ao sair.
+        const off = this.profile === 'sp105e' ? sp105ePacket('black') : this.profile === 'nucleo' ? Uint8Array.of(1, 0) : packet(0, null, 1);
+        await this.enqueue(off, true);
+      }
+      if (this.epoch !== expected) return;
+      this.cleanup(); this.status('disconnected', 'Placa desconectada. Você pode continuar na tela.');
+    }
+  }
+  const api = { profiles, packet, sp105ePacket, availability, WebBle };
+  root.TercoBluetooth = api;
+  if (typeof module !== 'undefined') module.exports = api;
+})(typeof globalThis !== 'undefined' ? globalThis : this);
