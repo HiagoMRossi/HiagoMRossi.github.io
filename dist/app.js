@@ -4,7 +4,7 @@
   const native = window.NativeTerco;
   const model = window.Terco;
   const bluetooth = window.TercoBluetooth;
-  let activeProfile = 'sp105e', connectionBusy = false, lightBusy = false, cueBusy = false, startAfterLights = false;
+  let activeProfile = 'terco', connectionBusy = false, lightBusy = false, cueBusy = false, startAfterLights = false;
   const webBle = native ? null : new bluetooth.WebBle({
     onStatus: data => window.nativeEvent('ble', data),
     onWrite: () => { $('last-command').textContent = 'Comando enviado por Bluetooth. Confira o resultado nos LEDs.'; }
@@ -182,15 +182,15 @@
   $('again').onclick = restart;
   function selectDefaultController() {
     if (connected || connectionBusy) return;
-    if ($('light-profile').value !== 'sp105e') {
-      $('lights-status').textContent = 'Pronto para conectar o SP105E.';
+    if ($('light-profile').value !== 'terco') {
+      $('lights-status').textContent = 'Pronto para conectar a STM32 · TercoBLE.';
       $('lights-status').classList.remove('error');
       $('ble-diagnostic').hidden = true;
       $('last-command').textContent = '';
     }
-    $('light-profile').value = 'sp105e';
+    $('light-profile').value = 'terco';
     $('advanced-controller').open = false;
-    activeProfile = 'sp105e';
+    activeProfile = 'terco';
   }
   $('connect').onclick = () => {
     engine.pause(); stopEffectAndRestore();
@@ -200,19 +200,19 @@
   function updateLights() {
     const profile = $('light-profile').value;
     const isBoard = profile === 'nucleo', isSp = profile === 'sp105e';
-    $('selected-controller').textContent = isSp ? 'SP105E · 34 LEDs' : isBoard ? 'NUCLEO · LED da placa' : 'NUCLEO · firmware TercoBLE';
-    $('lights-title').textContent = connected ? 'Controlar luzes' : isSp ? 'Conectar SP105E' : 'Conectar NUCLEO';
+    $('selected-controller').textContent = isSp ? 'SP105E · 34 LEDs' : isBoard ? 'NUCLEO · LED da placa' : 'STM32 · TercoBLE';
+    $('lights-title').textContent = connected ? 'Controlar luzes' : isSp ? 'Conectar SP105E' : isBoard ? 'Conectar NUCLEO' : 'Conectar STM32';
     $('strand-test').hidden = profile !== 'terco';
     $('board-test').hidden = !isBoard;
     $('sp105e-test').hidden = !isSp || !connected;
     $('connection-help').hidden = connected;
     $('profile-help').hidden = connected;
     $('ble-support').hidden = connected;
-    $('profile-help').textContent = isSp ? 'O Lumen conecta diretamente ao SP105E. Desconecte e feche o Magic-LED antes de selecionar o controlador aqui.' : isBoard ? 'Liga e apaga o LED azul da própria NUCLEO com a demonstração de fábrica BLE_p2pServer.' : 'Requer a NUCLEO com o firmware TercoBLE e o cordão ligado corretamente.';
+    $('profile-help').textContent = isSp ? 'O Lumen conecta diretamente ao SP105E. Desconecte e feche o Magic-LED antes de selecionar o controlador aqui.' : isBoard ? 'Liga e apaga o LED azul da própria NUCLEO com a demonstração de fábrica BLE_p2pServer.' : 'Escolha TercoBLE na janela do Chrome. Use a STM32 com o firmware TercoBLE; o LED azul da placa permite testar a conexão antes de montar o cordão de 34 LEDs.';
     const support = native ? '' : bluetooth.availability();
     $('ble-support').textContent = support || (native ? 'Bluetooth do aplicativo Android.' : 'Bluetooth disponível neste navegador. A seleção do dispositivo abre ao tocar no botão abaixo.');
     $('ble-support').classList.toggle('error', !!support);
-    $('pair').textContent = connected ? 'Desconectar dispositivo' : connectionBusy ? 'Conectando…' : isSp ? 'Conectar SP105E' : 'Conectar NUCLEO';
+    $('pair').textContent = connected ? 'Desconectar dispositivo' : connectionBusy ? 'Conectando…' : isSp ? 'Conectar SP105E' : isBoard ? 'Conectar NUCLEO' : 'Conectar STM32';
     $('pair').disabled = connectionBusy;
     $('pair-all').hidden = !!native || !isSp || connected;
     $('pair-all').disabled = connectionBusy;
@@ -301,7 +301,7 @@
       connectionBusy = ['scanning', 'connecting', 'disconnecting'].includes(data.state);
       $('connection-status').classList.toggle('connected', connected);
       $('connection-status').innerHTML = '<i></i>' + (connected ? activeProfile === 'sp105e' ? 'SP105E · 34 LEDs' : activeProfile === 'nucleo' ? 'NUCLEO · teste' : 'Terço conectado' : data.state === 'scanning' ? 'Buscando…' : data.state === 'connecting' ? 'Conectando…' : 'Contas na tela');
-      $('connect').textContent = connected ? 'Controlar luzes' : 'Conectar SP105E';
+      $('connect').textContent = connected ? 'Controlar luzes' : 'Conectar STM32';
       if (wasConnected && !connected) { engine.pause(); cancelEffect(); render(engine.snapshot()); }
       if (connected) { if (activeProfile === 'nucleo') board(false); else if (activeProfile === 'terco') led(engine.finished ? null : engine.step.bead); }
       $('lights-status').textContent = data.message || (connected ? 'Placa conectada.' : 'Nenhuma placa conectada.');
