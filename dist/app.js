@@ -2,6 +2,7 @@
   'use strict';
   const $ = id => document.getElementById(id);
   const native = window.NativeTerco;
+  const screenWakeLock = native ? null : new window.LumenWakeLock.ScreenWakeLock();
   const model = window.Terco;
   const bluetooth = window.TercoBluetooth;
   let activeProfile = 'terco', connectionBusy = false, lightBusy = false, cueBusy = false, startAfterLights = false;
@@ -152,6 +153,7 @@
     if (s.index !== lastStep) $('full-prayer').open = false;
     lastStep = s.index;
     if (native) native.keepAwake(s.playing);
+    else screenWakeLock.setActive(s.playing && !s.finished);
     try { localStorage.setItem('lumen-progress-v1', JSON.stringify({ group: s.group, index: s.finished ? 0 : s.index })); } catch (_) { /* Optional persistence. */ }
   }
   function stopEffectAndRestore() { cancelEffect(); if (guided) guided.stop(); led(engine.finished ? null : engine.step.bead); }
@@ -325,4 +327,5 @@
   selectDefaultController();
   updateLights();
   if (native) native.ready();
+  window.LumenPwa.registerServiceWorker();
 })();

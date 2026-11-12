@@ -23,6 +23,10 @@ function fixture(options = {}) {
   $('test-bead').value = '1'; $('guide-enabled').checked = true;
   const actions = [...html.matchAll(/data-sp-action="([^"]+)"/g)].map(m => Object.assign(element(), { dataset: { spAction: m[1] } }));
   const writes = [], writeModes = [], spoken = [], events = {}, requests = [], services = [], characteristics = [];
+  function listen(name, handler) {
+    const previous = events[name];
+    events[name] = () => { if (previous) previous(); handler(); };
+  }
   const characteristic = {
     properties: options.properties || { write: true, writeWithoutResponse: true },
     async writeValueWithResponse(bytes) { writes.push(Array.from(bytes)); writeModes.push('withResponse'); },
@@ -41,18 +45,18 @@ function fixture(options = {}) {
   const document = {
     hidden: false, getElementById: $, createElement: element, createElementNS: element,
     querySelector: () => element(), querySelectorAll: () => actions,
-    addEventListener: (name, handler) => { events[name] = handler; }
+    addEventListener: listen
   };
-  const context = vm.createContext({ document, navigator: { bluetooth: { async requestDevice(query) { requests.push(JSON.parse(JSON.stringify(query))); return device; } } },
+  const context = vm.createContext({ document, navigator: { ...options.navigator, bluetooth: { async requestDevice(query) { requests.push(JSON.parse(JSON.stringify(query))); return device; } } },
     isSecureContext: true, setTimeout, clearTimeout, performance,
     requestAnimationFrame: () => 1, cancelAnimationFrame() {},
     localStorage: { getItem: () => JSON.stringify({ group: 'gozosos', index: 3 }), setItem() {} },
     speechSynthesis: { getVoices: () => [], speak: utterance => spoken.push(utterance), cancel() {} },
     SpeechSynthesisUtterance: function (text) { this.text = text; },
-    addEventListener() {}, confirm: () => true
+    addEventListener: listen, confirm: () => true
   });
   context.window = context;
-  for (const name of ['core.js', 'bluetooth.js', 'guided-lights.js', 'app.js']) {
+  for (const name of ['core.js', 'bluetooth.js', 'guided-lights.js', 'wake-lock.js', 'pwa.js', 'app.js']) {
     vm.runInContext(fs.readFileSync(path.join(__dirname, '../dist', name), 'utf8'), context, { filename: name });
   }
   return { $, writes, writeModes, spoken, document, events, requests, services, characteristics, device };
@@ -106,4 +110,51 @@ test('entrada principal usa TercoBLE mesmo após seleção antiga restaurada e t
   f.$('pair').onclick(); await tick();
   assert.equal(f.device.gatt.connected, false);
   assert.equal(f.$('connect').textContent, 'Conectar STM32');
+});
+
+test('app liga Wake Lock na oração e libera em pausa, ajustes, testes de luz, saída e conclusão', async () => {
+  const locks = [], registrations = [];
+  const f = fixture({ navigator: {
+    wakeLock: { async request(type) {
+      assert.equal(type, 'screen');
+      const lock = new EventTarget(); lock.released = false;
+      lock.release = async () => { lock.released = true; lock.dispatchEvent(new Event('release')); };
+      locks.push(lock); return lock;
+    } },
+    serviceWorker: { async register(url) { registrations.push(url); } }
+  } });
+  assert.equal(locks.length, 0); assert.deepEqual(registrations, ['./sw.js']);
+  const start = async () => { f.$('play').onclick(); await tick(); assert.equal(locks.at(-1).released, false); };
+  await start(); f.$('play').onclick(); await tick(); assert.equal(locks.at(-1).released, true);
+  await start(); f.$('settings-open').onclick(); await tick(); assert.equal(locks.at(-1).released, true);
+  await start(); f.$('connect').onclick(); await tick(); assert.equal(locks.at(-1).released, true);
+  await start(); f.events.pagehide(); await tick(); assert.equal(locks.at(-1).released, true);
+  await start();
+  let count = 0;
+  while (f.$('completion').hidden) { assert.ok(count++ < 1000); f.spoken.at(-1).onend(); }
+  await tick(); assert.equal(locks.at(-1).released, true);
+});
+
+test('ocultar pausa o app e voltar não retoma nem readquire Wake Lock automaticamente', async () => {
+  let requests = 0, releases = 0;
+  const f = fixture({ navigator: { wakeLock: { async request() {
+    requests++;
+    return { released: false, addEventListener() {}, async release() { releases++; this.released = true; } };
+  } } } });
+  f.$('play').onclick(); await tick(); assert.equal(requests, 1);
+  f.document.hidden = true; f.events.visibilitychange(); await tick();
+  assert.equal(releases, 1); assert.equal(f.$('play-label').textContent, 'Continuar oração');
+  f.document.hidden = false; f.events.visibilitychange(); await tick(); assert.equal(requests, 1);
+  f.$('play').onclick(); await tick(); assert.equal(requests, 2);
+  f.$('play').onclick(); await tick();
+});
+
+test('falhas de Wake Lock e registro do worker não impedem narração e pausa', async () => {
+  const f = fixture({ navigator: {
+    wakeLock: { request: () => Promise.reject(new Error('Denied')) },
+    serviceWorker: { register: () => Promise.reject(new Error('Offline')) }
+  } });
+  f.$('play').onclick(); await tick();
+  assert.equal(f.spoken.length, 1); assert.equal(f.$('play-label').textContent, 'Pausar');
+  f.$('play').onclick(); await tick(); assert.equal(f.$('play-label').textContent, 'Continuar oração');
 });
