@@ -13,7 +13,7 @@ Projeto local baseado na estrutura Bubblewrap do Findly, lida como referência. 
 `twa-manifest.json` é a fonte lida por `app/build.gradle` para identidade, URLs, cores e versão. Ele mantém o formato de configuração do Bubblewrap com `_todo` para registrar pendências; não foi regenerado pela CLI.
 
 1. **TODO-confirm — applicationId:** `packageId: "com.hiagomrossi.lumen"` é provisório. Confirmar antes do primeiro envio à Play e manter `assetlinks.template.json` alinhado. O namespace Java interno pode continuar `com.hiagomrossi.lumen`, mesmo que o applicationId seja alterado.
-2. **TODO — hostName:** substituir `TODO-PUBLIC-HOST.example` em `host`, `iconUrl`, `maskableIconUrl` e `webManifestUrl`. `startUrl: "/"` fornece o `launchUrl` relativo. A origem e os recursos de associação Android são derivados do host no build.
+2. **TODO — hostName:** substituir `hiagomrossi.github.io` em `host`, `iconUrl`, `maskableIconUrl` e `webManifestUrl`. `startUrl: "/"` fornece o `launchUrl` relativo. A origem e os recursos de associação Android são derivados do host no build.
 3. **PLACEHOLDER — arte:** os cinco mipmaps PNG (48, 72, 96, 144 e 192 px) e o splash de 512 px vêm de `dist/icons/`. Substituir pela arte final antes da publicação. Para regenerar os placeholders, a partir da raiz do repositório: `node scripts/generate-twa-placeholder-icons.cjs`. Esse script é offline e não altera os ícones web.
 4. **TODO — certificado, contato e política:** definir a assinatura e finalizar os rascunhos em `../docs/` antes da submissão.
 

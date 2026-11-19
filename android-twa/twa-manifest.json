@@ -1,6 +1,6 @@
 {
   "packageId": "com.hiagomrossi.lumen",
-  "host": "TODO-PUBLIC-HOST.example",
+  "host": "hiagomrossi.github.io",
   "name": "Lumen",
   "launcherName": "Lumen",
   "display": "standalone",
@@ -14,24 +14,23 @@
   "enableNotifications": false,
   "enableSiteSettingsShortcut": true,
   "startUrl": "/",
-  "iconUrl": "https://TODO-PUBLIC-HOST.example/icons/icon-512.png",
-  "maskableIconUrl": "https://TODO-PUBLIC-HOST.example/icons/icon-maskable-512.png",
+  "iconUrl": "https://hiagomrossi.github.io/icons/icon-512.png",
+  "maskableIconUrl": "https://hiagomrossi.github.io/icons/icon-maskable-512.png",
   "splashScreenFadeOutDuration": 300,
   "appVersionCode": 1,
   "appVersion": "0.4.3",
   "minSdkVersion": 29,
   "orientation": "default",
-  "webManifestUrl": "https://TODO-PUBLIC-HOST.example/manifest.webmanifest",
+  "webManifestUrl": "https://hiagomrossi.github.io/manifest.webmanifest",
   "fallbackType": "customtabs",
   "features": {},
   "fingerprints": [],
   "shortcuts": [],
   "generatorApp": "lumen-local-twa",
   "_todo": {
-    "packageId": "TODO-confirm: confirmar com.hiagomrossi.lumen antes do primeiro envio à Play.",
-    "host": "TODO: HTTPS público sem login; o host chatgpt.site atual exige autenticação.",
-    "icons": "PLACEHOLDER: substituir os ícones web, mipmaps e splash antes da publicação.",
+    "packageId": "TODO-confirm: confirmar com.hiagomrossi.lumen antes do primeiro envio a Play.",
+    "host": "Alvo local: hiagomrossi.github.io (GitHub Pages user site na raiz). Repo ainda NAO criado nem publicado — Hiago cria HiagoMRossi.github.io e ativa Pages. SHA de assetlinks ainda e placeholder.",
+    "icons": "PLACEHOLDER: substituir os icones web, mipmaps e splash antes da publicacao.",
     "signing": "Sem chave configurada. Usar ambiente ou keystore.properties local; ver README.md."
   }
 }
-

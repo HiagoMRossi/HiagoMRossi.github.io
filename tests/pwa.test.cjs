@@ -141,3 +141,22 @@ test('worker nunca intercepta não-GET, outra origem nem caminhos/versões fora 
   }
   assert.equal(f.opened.length, 0); assert.equal(f.fetched.length, 0);
 });
+
+test('assetlinks provisorio existe na raiz do site com pacote e SHA placeholder', () => {
+  const file = path.join(__dirname, '../dist/.well-known/assetlinks.json');
+  assert.ok(fs.existsSync(file), 'falta dist/.well-known/assetlinks.json');
+  assert.ok(fs.existsSync(path.join(__dirname, '../dist/.nojekyll')), 'falta dist/.nojekyll');
+  const entries = JSON.parse(fs.readFileSync(file, 'utf8'));
+  assert.equal(entries[0].target.package_name, 'com.hiagomrossi.lumen');
+  assert.deepEqual(entries[0].target.sha256_cert_fingerprints, ['REPLACE_WITH_PLAY_APP_SIGNING_SHA256']);
+  assert.ok(!APP_SHELL.some(u => u.includes('assetlinks') || u.includes('.well-known')),
+    'assetlinks nao deve entrar no cache do app shell');
+});
+
+test('TWA aponta para hiagomrossi.github.io', () => {
+  const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, '../android-twa/twa-manifest.json'), 'utf8'));
+  assert.equal(manifest.host, 'hiagomrossi.github.io');
+  assert.equal(manifest.packageId, 'com.hiagomrossi.lumen');
+  assert.equal(manifest.startUrl, '/');
+  assert.match(manifest.webManifestUrl, /^https:\/\/hiagomrossi\.github\.io\//);
+});

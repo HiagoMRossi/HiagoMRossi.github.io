@@ -4,7 +4,7 @@
     "target": {
       "namespace": "android_app",
       "package_name": "com.hiagomrossi.lumen",
-      "sha256_cert_fingerprints": ["TODO_PLAY_APP_SIGNING_SHA256"]
+      "sha256_cert_fingerprints": ["REPLACE_WITH_PLAY_APP_SIGNING_SHA256"]
     }
   }
 ]

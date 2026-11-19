@@ -9,7 +9,7 @@ plugins {
 def manifest = new JsonSlurper().parse(rootProject.file('twa-manifest.json'))
 def twaManifest = [
     applicationId: manifest.packageId, // TODO-confirm: com.hiagomrossi.lumen
-    hostName: manifest.host,           // TODO-PUBLIC-HOST.example: confirmar HTTPS público
+    hostName: manifest.host,           // hiagomrossi.github.io (GitHub Pages user site); confirmar apos o primeiro deploy
     launchUrl: manifest.startUrl,
     name: manifest.name,
     launcherName: manifest.launcherName
