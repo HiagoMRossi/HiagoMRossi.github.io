@@ -1,0 +1,11 @@
+# Artefatos locais, SDK e assinatura nunca devem entrar no Git.
+build/
+.gradle/
+.kotlin/
+local.properties
+keystore.properties
+*.jks
+*.keystore
+*.apk
+*.aab
+

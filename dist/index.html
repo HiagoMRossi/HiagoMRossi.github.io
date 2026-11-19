@@ -9,13 +9,14 @@
   <meta name="description" content="Terço guiado por voz com 34 LEDs controlados pela STM32 e firmware TercoBLE.">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20rx%3D%228%22%20fill%3D%22%23183f37%22%2F%3E%3Cpath%20d%3D%22M14%206h4v8h7v4h-7v8h-4v-8H7v-4h7z%22%20fill%3D%22%23ffb452%22%2F%3E%3C%2Fsvg%3E">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="style.css?v=0.4.2">
-  <script src="core.js?v=0.4.2" defer></script>
-  <script src="bluetooth.js?v=0.4.2" defer></script>
-  <script src="guided-lights.js?v=0.4.2" defer></script>
-  <script src="wake-lock.js?v=0.4.2" defer></script>
-  <script src="pwa.js?v=0.4.2" defer></script>
-  <script src="app.js?v=0.4.2" defer></script>
+  <link rel="stylesheet" href="style.css?v=0.4.3">
+  <script src="config.js?v=0.4.3" defer></script>
+  <script src="core.js?v=0.4.3" defer></script>
+  <script src="bluetooth.js?v=0.4.3" defer></script>
+  <script src="guided-lights.js?v=0.4.3" defer></script>
+  <script src="wake-lock.js?v=0.4.3" defer></script>
+  <script src="pwa.js?v=0.4.3" defer></script>
+  <script src="app.js?v=0.4.3" defer></script>
 </head>
 <body>
 <main class="app">
@@ -35,7 +36,7 @@
   <section id="completion" class="completion" hidden><div aria-hidden="true">✦</div><h2>Terço concluído.</h2><p>Que a paz acompanhe o seu dia.</p><button id="again" class="text-button">Rezar novamente</button></section>
   <footer class="controls"><div class="player"><button id="previous" class="icon-button" aria-label="Oração anterior"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5v14M18 5l-9 7 9 7z"/></svg></button><button id="play" class="play-button"><span id="play-symbol" aria-hidden="true">▶</span><span id="play-label">Iniciar terço</span></button><button id="next" class="icon-button" aria-label="Próxima oração"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 5v14M6 5l9 7-9 7z"/></svg></button></div><p id="player-hint">Voz em português · Avanço automático</p></footer>
 </main>
-<dialog id="settings"><form method="dialog"><div class="dialog-header"><h2>Do seu jeito.</h2><button class="icon-button" aria-label="Fechar ajustes">✕</button></div></form><label class="setting">Velocidade da voz <output id="rate-label">0,85×</output><input id="rate" type="range" min="0.65" max="1.15" step="0.05" value="0.85"></label><label class="setting">Brilho das contas · STM32 <output id="brightness-label">50%</output><input id="brightness" type="range" min="1" max="100" value="50"></label><p class="small">O brilho é limitado nesta versão de bancada. Ao retomar, a frase interrompida começa de novo.</p><button id="effect" class="secondary-button">Ver efeito de encerramento</button><button id="reset" class="text-button danger">Recomeçar este terço</button><p class="small">Esta versão pausa ao sair do aplicativo. Use com a tela aberta. O progresso fica salvo neste aparelho.</p><div id="native-help" class="help"><strong>Conectar ao terço físico</strong><p>Use Conectar STM32 e escolha TercoBLE para acompanhar as contas com o cordão de 34 LEDs. Você pode testar primeiro o LED azul da placa. O SP105E e a demonstração de fábrica ficam em Outros controladores · avançado.</p></div><button id="install-voice" class="text-button" hidden>Configurar voz em português</button><p class="version">LUMEN · PROTÓTIPO 0.4.2</p></dialog>
+<dialog id="settings"><form method="dialog"><div class="dialog-header"><h2>Do seu jeito.</h2><button class="icon-button" aria-label="Fechar ajustes">✕</button></div></form><label class="setting">Velocidade da voz <output id="rate-label">0,85×</output><input id="rate" type="range" min="0.65" max="1.15" step="0.05" value="0.85"></label><label class="setting">Brilho das contas · STM32 <output id="brightness-label">50%</output><input id="brightness" type="range" min="1" max="100" value="50"></label><p class="small">O brilho é limitado nesta versão de bancada. Ao retomar, a frase interrompida começa de novo.</p><button id="effect" class="secondary-button">Ver efeito de encerramento</button><button id="reset" class="text-button danger">Recomeçar este terço</button><p class="small">Esta versão pausa ao sair do aplicativo. Use com a tela aberta. O progresso fica salvo neste aparelho.</p><div id="native-help" class="help"><strong>Conectar ao terço físico</strong><p>Use Conectar STM32 e escolha TercoBLE para acompanhar as contas com o cordão de 34 LEDs. Você pode testar primeiro o LED azul da placa. Esta versão usa a STM32 com firmware TercoBLE.</p></div><button id="install-voice" class="text-button" hidden>Configurar voz em português</button><p class="version">LUMEN · PROTÓTIPO 0.4.3</p></dialog>
 <dialog id="lights"><form method="dialog"><div class="dialog-header"><h2 id="lights-title">Conectar STM32</h2><button class="icon-button" aria-label="Fechar controles de luz">✕</button></div></form>
   <p class="small">A oração fica pausada enquanto você testa as luzes.</p>
   <div class="controller-choice"><span class="eyebrow">CONTROLADOR</span><strong id="selected-controller">STM32 · TercoBLE</strong></div>
@@ -46,7 +47,7 @@
   <div id="connection-help"><p class="small">A busca abre pelo Lumen, em uma janela do Chrome. Selecione o dispositivo correspondente ao controlador acima e confirme em Parear ou Conectar.</p>
   <details class="ble-help"><summary>Se a busca não abrir ou ficar vazia</summary><ol><li>Feche outros aplicativos que estejam conectados ao controlador.</li><li>No Poco, segure o ícone do Chrome, abra Informações do app → Permissões e permita Dispositivos próximos, se essa opção existir.</li><li>Se o Chrome solicitar localização para buscar dispositivos, autorize durante o uso e ative a localização do celular.</li><li>Confira o Bluetooth e a alimentação da placa ou controlador; aproxime o celular e tente de novo.</li></ol></details></div>
   <p id="lights-status" class="small" role="status">Nenhum dispositivo conectado.</p>
-  <section id="sp105e-test" class="light-test">
+  <section id="sp105e-test" class="light-test" hidden>
     <div id="sp-guide" class="guide-card">
       <span class="eyebrow">TERÇO COM 34 LEDS</span>
       <h3>A luz acompanha a voz.</h3>
@@ -64,10 +65,10 @@
   </section>
   <section id="strand-test" class="light-test"><label for="test-bead" class="eyebrow">TESTAR UMA CONTA</label><div class="test-row"><button id="test-prev" class="icon-button" aria-label="Conta anterior do teste">−</button><label class="test-number"><input id="test-bead" type="number" min="1" max="59" step="1" value="1" inputmode="numeric" aria-label="Número da conta de teste"><span>de 59</span></label><button id="test-next" class="icon-button" aria-label="Próxima conta do teste">+</button></div><div class="test-actions"><button id="test-on" class="secondary-button">Acender conta</button><button id="test-off" class="secondary-button">Apagar</button></div><p class="small">O LED azul da STM32 também responde a Acender conta e Apagar: teste primeiro com o cordão desconectado. Durante o terço, os 34 LEDs são reutilizados sem pular nenhuma oração. Sem conexão, o teste mostra apenas a bolinha na tela. Fechar este painel restaura a conta da oração.</p></section>
   <section id="board-test" class="light-test" hidden><span class="eyebrow">LED AZUL DA NUCLEO</span><div class="test-actions"><button id="board-on" class="secondary-button" disabled>Acender LED azul</button><button id="board-off" class="secondary-button" disabled>Apagar LED azul</button></div><p class="small">Use a demonstração BLE_p2pServer da placa. Este teste liga uma única luz da NUCLEO e não comanda as contas do cordão.</p></section>
-  <details id="advanced-controller" class="ble-help advanced-controller"><summary>Outros controladores · avançado</summary>
+  <details id="advanced-controller" class="ble-help advanced-controller" hidden><summary>Outros controladores · avançado</summary>
     <p>Troque aqui somente para usar o SP105E antigo ou a demonstração de fábrica da NUCLEO.</p>
     <label class="setting" for="light-profile">Controlador e programa instalado</label>
-    <select id="light-profile" class="profile-select" autocomplete="off"><option value="terco" selected>STM32 · TercoBLE · 34 LEDs</option><option value="sp105e">SP105E · controlador antigo</option><option value="nucleo">NUCLEO · demonstração do LED azul</option></select>
+    <select id="light-profile" class="profile-select" autocomplete="off" disabled><option value="terco" selected>STM32 · TercoBLE · 34 LEDs</option><option id="profile-sp105e" value="sp105e" hidden disabled>SP105E · controlador antigo</option><option id="profile-nucleo" value="nucleo" hidden disabled>NUCLEO · demonstração do LED azul</option></select>
   </details>
   <p id="last-command" class="small" role="status"></p>
   <details id="ble-diagnostic" class="ble-help" hidden><summary>Detalhes da tentativa</summary><p>Se precisar de ajuda, envie um print destes detalhes.</p><pre id="ble-diagnostic-text"></pre></details>

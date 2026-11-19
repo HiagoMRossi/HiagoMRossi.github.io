@@ -1,0 +1,105 @@
+import groovy.json.JsonOutput
+import groovy.json.JsonSlurper
+
+plugins {
+    id 'com.android.application'
+}
+
+// Fonte única: não duplicar domínio/versão em recursos Android editados à mão.
+def manifest = new JsonSlurper().parse(rootProject.file('twa-manifest.json'))
+def twaManifest = [
+    applicationId: manifest.packageId, // TODO-confirm: com.hiagomrossi.lumen
+    hostName: manifest.host,           // TODO-PUBLIC-HOST.example: confirmar HTTPS público
+    launchUrl: manifest.startUrl,
+    name: manifest.name,
+    launcherName: manifest.launcherName
+]
+def origin = 'https://' + twaManifest.hostName
+def assetStatements = JsonOutput.toJson([[
+    relation: ['delegate_permission/common.handle_all_urls'],
+    target: [namespace: 'web', site: origin]
+]])
+
+// Opcional: nenhuma chave/senha de produção é incluída neste projeto.
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file('keystore.properties')
+if (keystorePropertiesFile.exists()) {
+    keystorePropertiesFile.withInputStream { keystoreProperties.load(it) }
+}
+def signingValue = { String key, String envName ->
+    System.getenv(envName) ?: keystoreProperties.getProperty(key)
+}
+def releaseSigning = [
+    storeFile: signingValue('storeFile', 'LUMEN_KEYSTORE_FILE'),
+    storePassword: signingValue('storePassword', 'LUMEN_KEYSTORE_PASSWORD'),
+    keyAlias: signingValue('keyAlias', 'LUMEN_KEY_ALIAS'),
+    keyPassword: signingValue('keyPassword', 'LUMEN_KEY_PASSWORD')
+]
+def hasReleaseSigning = releaseSigning.values().every { it }
+if (releaseSigning.values().any { it } && !hasReleaseSigning) {
+    throw new GradleException('Assinatura incompleta: configure os quatro campos do ambiente ou de keystore.properties, ou remova a configuração para gerar AAB sem assinatura.')
+}
+
+android {
+    namespace 'com.hiagomrossi.lumen' // Namespace interno; packageId final vem do JSON.
+    compileSdk 36
+
+    defaultConfig {
+        applicationId twaManifest.applicationId
+        minSdk manifest.minSdkVersion
+        targetSdk 36
+        versionCode manifest.appVersionCode
+        versionName manifest.appVersion
+
+        resValue 'string', 'appName', twaManifest.name
+        resValue 'string', 'launcherName', twaManifest.launcherName
+        resValue 'string', 'launchUrl', origin + twaManifest.launchUrl
+        resValue 'string', 'hostName', twaManifest.hostName
+        resValue 'string', 'webManifestUrl', manifest.webManifestUrl
+        // Aspas escapadas para o compilador de recursos Android.
+        resValue 'string', 'assetStatements', assetStatements.replace('"', '\\"')
+        resValue 'string', 'providerAuthority', twaManifest.applicationId + '.fileprovider'
+        resValue 'string', 'generatorApp', manifest.generatorApp
+        resValue 'string', 'fallbackType', manifest.fallbackType
+        resValue 'string', 'orientation', manifest.orientation
+        resValue 'integer', 'splashScreenFadeOutDuration', manifest.splashScreenFadeOutDuration.toString()
+        resValue 'color', 'colorPrimary', manifest.themeColor
+        resValue 'color', 'colorPrimaryDark', manifest.themeColorDark
+        resValue 'color', 'navigationColor', manifest.navigationColor
+        resValue 'color', 'navigationColorDark', manifest.navigationColorDark
+        resValue 'color', 'navigationDividerColor', manifest.navigationDividerColor
+        resValue 'color', 'navigationDividerColorDark', manifest.navigationDividerColorDark
+        resValue 'color', 'backgroundColor', manifest.backgroundColor
+    }
+
+    signingConfigs {
+        if (hasReleaseSigning) {
+            release {
+                storeFile rootProject.file(releaseSigning.storeFile)
+                storePassword releaseSigning.storePassword
+                keyAlias releaseSigning.keyAlias
+                keyPassword releaseSigning.keyPassword
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            if (hasReleaseSigning) signingConfig signingConfigs.release
+            // Sem configuração, bundleRelease produz AAB SEM assinatura.
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+    lint {
+        checkReleaseBuilds true
+    }
+}
+
+dependencies {
+    implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.7.4'
+}
+

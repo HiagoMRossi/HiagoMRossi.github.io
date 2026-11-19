@@ -2,6 +2,23 @@
 
 Aplicativo web estático. Os arquivos editáveis ficam em `dist/`; não requer compilação.
 
+## Web 0.4.3 — STM32/TercoBLE + Android TWA
+
+- O lançamento oferece somente **STM32 com firmware TercoBLE**. `dist/config.js` define `window.LumenConfig = { legacyControllers: false }`. O HTML já oculta os painéis antigos antes de o JavaScript carregar; o app também bloqueia seleções legadas restauradas pelo navegador. Configuração ausente mantém TercoBLE.
+- SP105E e NUCLEO BLE_p2pServer continuam no código. Para testes locais, edite **somente** `legacyControllers: true` em `dist/config.js`, recarregue e abra **Conectar STM32 → Outros controladores · avançado**. A flag é lida ao iniciar; alterações no console depois disso não reconfiguram a sessão. Se houver service worker antigo, feche as páginas e atualize/remova seu registro/cache pelo DevTools; não é necessário apagar o progresso. Restaure `false` antes de distribuir. Não existe ativação por query string ou preferência salva.
+- `index.html` e o cache `lumen-v0.4.3` usam URLs 0.4.3, incluindo `config.js`. `bluetooth.js`, pacotes, UUIDs, sequência/numeração das 59 contas, mapeamento e **Acender conta/Apagar** permanecem inalterados.
+- Projeto Android em [android-twa/](android-twa/README.md), baseado na referência Bubblewrap do Findly: AGP 8.9.1, Gradle 8.11.1, Browser Helper 2.7.4, SDK alvo/compilação 36 e mínimo 29. Domínio e applicationId ainda são placeholders; release sem assinatura por padrão. Não foi executado Gradle nem gerado APK/AAB. Ícones são **PLACEHOLDERS**, derivados offline de `dist/icons/`.
+- A TWA usa Web Bluetooth pelo Chrome, sem permissões BLE no wrapper, notificações ou delegação de localização. Exige hospedagem HTTPS pública sem login e Digital Asset Links; o host chatgpt.site atual não serve para esse lançamento. O template fica em `android-twa/assetlinks.template.json`, fora de `dist/`, sem publicação.
+- [Ficha Play](docs/play-listing-draft.md) e [privacidade](docs/privacy-policy.md) continuam **DRAFT / RASCUNHO**, agora com STM32 e TWA definidos. Hospedagem, assinatura, arte final e validação física/Android seguem pendentes.
+
+Validação web 0.4.3: **63 testes aprovados (60 anteriores + 3 novos)**. Nenhum teste foi removido ou enfraquecido: a fixture carrega a configuração e o teste SP105E habilita explicitamente a flag; as expectativas de versão do PWA passaram para 0.4.3. Os novos cenários cobrem ocultação, tentativa de selecionar legado com flag desativada, TercoBLE/contas individuais e NUCLEO p2p com flag ativada. Execute todos no Windows com caminhos explícitos:
+
+```powershell
+node --test tests/app-flow.test.cjs tests/bluetooth.test.cjs tests/core.test.cjs tests/guided-lights.test.cjs tests/wake-lock.test.cjs tests/pwa.test.cjs
+```
+
+As seções seguintes registram versões anteriores; o escopo atual é o da 0.4.3 acima.
+
 Versão 0.3: inclui perfil Bluetooth SP105E com teste de cores globais, apagar por RGB zero e alternância explícita de energia. Não implementa o avanço de LEDs individuais no SP105E. A conexão exige Chrome Android com HTTPS e escolha do dispositivo pelo usuário.
 
 Protocolo e testes foram verificados em software; o ensaio físico no controlador do usuário segue pendente.
@@ -37,7 +54,7 @@ O transporte BLE e os pacotes não mudam. A seleção padrão é restaurada para
 
 Os arquivos continuam editáveis diretamente em `dist/`, sem build. O cache usa as versões exatas dos URLs em `index.html`; ao mudar recursos em uma versão futura, atualizar também a lista e o nome do cache em `sw.js`. Não há `skipWaiting`: uma nova versão aguarda o fechamento das páginas controladas pela antiga para ativar. É necessário um primeiro carregamento online e instalação bem-sucedida do cache antes de usar os arquivos offline. A síntese de voz pode depender de rede e da voz instalada; este recurso não garante narração offline nem suporte a Web Bluetooth em qualquer contêiner.
 
-Testes automatizados: **60 aprovados**, incluindo os 38 existentes, cenários de cancelamento/visibilidade do Wake Lock e cache/registro PWA. No Windows, passe os caminhos explicitamente:
+Validação histórica da 0.4.2: **60 aprovados**, incluindo os 38 existentes, cenários de cancelamento/visibilidade do Wake Lock e cache/registro PWA. No Windows, passe os caminhos explicitamente:
 
 ```powershell
 node --test tests/app-flow.test.cjs tests/bluetooth.test.cjs tests/core.test.cjs tests/guided-lights.test.cjs tests/wake-lock.test.cjs tests/pwa.test.cjs
@@ -49,5 +66,5 @@ Ainda precisa de teste manual em telefone, com o contêiner final:
 - [ ] Trocar de app, bloquear/desbloquear a tela e voltar: a oração deve permanecer pausada até Continuar, sem comandos ou efeitos antigos retomados.
 - [ ] Instalar/abrir em standalone por HTTPS, conferir ícones/recorte maskable, fechar e reabrir sem rede após o cache pronto; verificar separadamente a disponibilidade da voz offline.
 - [ ] Verificar atualização do worker após fechar todas as páginas antigas, remoção do cache anterior e preservação de progresso. Para manutenção local, usar as opções de service worker/limpeza de dados do navegador; limpar dados também apaga o progresso.
-- [ ] Testar permissões, conexão, reconexão e comandos físicos TercoBLE (inclusive Acender conta/Apagar), SP105E e demonstração NUCLEO conforme os perfis que forem distribuídos. Testes em software não comprovam o funcionamento elétrico do cordão.
-- [ ] Confirmar TWA versus WebView, auditar ponte nativa/hospedagem/voz, substituir os PLACEHOLDERS e revisar os rascunhos antes da submissão à Play.
+- [ ] Testar permissões no Chrome/TWA, conexão, reconexão e comandos físicos TercoBLE (inclusive Acender conta/Apagar) no cordão completo. Testes em software não comprovam o funcionamento elétrico do cordão. SP105E/p2p são perfis de teste fora do lançamento.
+- [ ] Compilar e validar a TWA escolhida, auditar manifesto mesclado/hospedagem/voz, substituir os PLACEHOLDERS e revisar os rascunhos antes da submissão à Play.

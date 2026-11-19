@@ -1,16 +1,17 @@
 'use strict';
-const CACHE_NAME = 'lumen-v0.4.2';
+const CACHE_NAME = 'lumen-v0.4.3';
 // URLs exatas de index.html, incluindo as versões dos scripts e da folha de estilo.
 const APP_SHELL = [
   './',
   './index.html',
-  './style.css?v=0.4.2',
-  './core.js?v=0.4.2',
-  './bluetooth.js?v=0.4.2',
-  './guided-lights.js?v=0.4.2',
-  './wake-lock.js?v=0.4.2',
-  './pwa.js?v=0.4.2',
-  './app.js?v=0.4.2',
+  './style.css?v=0.4.3',
+  './config.js?v=0.4.3',
+  './core.js?v=0.4.3',
+  './bluetooth.js?v=0.4.3',
+  './guided-lights.js?v=0.4.3',
+  './wake-lock.js?v=0.4.3',
+  './pwa.js?v=0.4.3',
+  './app.js?v=0.4.3',
   './manifest.webmanifest',
   './icons/icon-192.png',
   './icons/icon-512.png',

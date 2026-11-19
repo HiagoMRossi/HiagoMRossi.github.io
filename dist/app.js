@@ -1,6 +1,8 @@
 (function () {
   'use strict';
   const $ = id => document.getElementById(id);
+  // Ausência da configuração também mantém o escopo de lançamento.
+  const legacyControllers = window.LumenConfig?.legacyControllers === true;
   const native = window.NativeTerco;
   const screenWakeLock = native ? null : new window.LumenWakeLock.ScreenWakeLock();
   const model = window.Terco;
@@ -199,8 +201,17 @@
     selectDefaultController();
     updateLights(); $('lights').showModal();
   };
+  function selectedProfile() {
+    const value = $('light-profile').value;
+    return legacyControllers && ['sp105e', 'nucleo'].includes(value) ? value : 'terco';
+  }
   function updateLights() {
-    const profile = $('light-profile').value;
+    const profile = selectedProfile();
+    $('light-profile').value = profile;
+    $('advanced-controller').hidden = !legacyControllers;
+    for (const id of ['profile-sp105e', 'profile-nucleo']) {
+      $(id).hidden = $(id).disabled = !legacyControllers;
+    }
     const isBoard = profile === 'nucleo', isSp = profile === 'sp105e';
     $('selected-controller').textContent = isSp ? 'SP105E · 34 LEDs' : isBoard ? 'NUCLEO · LED da placa' : 'STM32 · TercoBLE';
     $('lights-title').textContent = connected ? 'Controlar luzes' : isSp ? 'Conectar SP105E' : isBoard ? 'Conectar NUCLEO' : 'Conectar STM32';
@@ -218,7 +229,7 @@
     $('pair').disabled = connectionBusy;
     $('pair-all').hidden = !!native || !isSp || connected;
     $('pair-all').disabled = connectionBusy;
-    $('light-profile').disabled = connected || connectionBusy;
+    $('light-profile').disabled = !legacyControllers || connected || connectionBusy;
     $('board-on').disabled = $('board-off').disabled = !connected || activeProfile !== 'nucleo';
     document.querySelectorAll('[data-sp-action]').forEach(button => { button.disabled = !connected || activeProfile !== 'sp105e' || lightBusy || cueBusy || connectionBusy; });
     $('sp-guide').hidden = !!native;
@@ -242,7 +253,8 @@
     if (connectionBusy) return;
     engine.pause(); cancelEffect();
     if (connected) { if (native) native.disconnect(); else webBle.disconnect(); return; }
-    activeProfile = $('light-profile').value;
+    activeProfile = selectedProfile();
+    $('light-profile').value = activeProfile;
     $('last-command').textContent = '';
     $('ble-diagnostic').hidden = true;
     $('ble-diagnostic-text').textContent = '';

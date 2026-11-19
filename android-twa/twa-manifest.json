@@ -1,0 +1,37 @@
+{
+  "packageId": "com.hiagomrossi.lumen",
+  "host": "TODO-PUBLIC-HOST.example",
+  "name": "Lumen",
+  "launcherName": "Lumen",
+  "display": "standalone",
+  "themeColor": "#f6f3eb",
+  "themeColorDark": "#f6f3eb",
+  "navigationColor": "#f6f3eb",
+  "navigationColorDark": "#f6f3eb",
+  "navigationDividerColor": "#f6f3eb",
+  "navigationDividerColorDark": "#f6f3eb",
+  "backgroundColor": "#f6f3eb",
+  "enableNotifications": false,
+  "enableSiteSettingsShortcut": true,
+  "startUrl": "/",
+  "iconUrl": "https://TODO-PUBLIC-HOST.example/icons/icon-512.png",
+  "maskableIconUrl": "https://TODO-PUBLIC-HOST.example/icons/icon-maskable-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "appVersionCode": 1,
+  "appVersion": "0.4.3",
+  "minSdkVersion": 29,
+  "orientation": "default",
+  "webManifestUrl": "https://TODO-PUBLIC-HOST.example/manifest.webmanifest",
+  "fallbackType": "customtabs",
+  "features": {},
+  "fingerprints": [],
+  "shortcuts": [],
+  "generatorApp": "lumen-local-twa",
+  "_todo": {
+    "packageId": "TODO-confirm: confirmar com.hiagomrossi.lumen antes do primeiro envio à Play.",
+    "host": "TODO: HTTPS público sem login; o host chatgpt.site atual exige autenticação.",
+    "icons": "PLACEHOLDER: substituir os ícones web, mipmaps e splash antes da publicação.",
+    "signing": "Sem chave configurada. Usar ambiente ou keystore.properties local; ver README.md."
+  }
+}
+

@@ -17,7 +17,8 @@ function fixture(options = {}) {
       close() { this.open = false; queueMicrotask(() => handlers.close?.()); }
     };
   }
-  const elements = Object.fromEntries([...html.matchAll(/\bid="([^"]+)"/g)].map(m => [m[1], element()]));
+  const elements = Object.fromEntries([...html.matchAll(/<[^>]*\bid="([^"]+)"[^>]*>/g)].map(m =>
+    [m[1], Object.assign(element(), { hidden: /\bhidden\b/.test(m[0]), disabled: /\bdisabled\b/.test(m[0]) })]));
   const $ = id => { assert.ok(elements[id], 'Elemento ausente: ' + id); return elements[id]; };
   $('light-profile').value = options.restoredProfile || html.match(/<option value="([^"]+)" selected>/)[1];
   $('test-bead').value = '1'; $('guide-enabled').checked = true;
@@ -56,17 +57,25 @@ function fixture(options = {}) {
     addEventListener: listen, confirm: () => true
   });
   context.window = context;
-  for (const name of ['core.js', 'bluetooth.js', 'guided-lights.js', 'wake-lock.js', 'pwa.js', 'app.js']) {
+  for (const name of ['config.js', 'core.js', 'bluetooth.js', 'guided-lights.js', 'wake-lock.js', 'pwa.js', 'app.js']) {
+    if (name === 'config.js' && options.withoutConfig) continue;
     vm.runInContext(fs.readFileSync(path.join(__dirname, '../dist', name), 'utf8'), context, { filename: name });
+    if (name === 'config.js' && Object.hasOwn(options, 'legacyControllers')) {
+      context.LumenConfig.legacyControllers = options.legacyControllers;
+    }
   }
   return { $, writes, writeModes, spoken, document, events, requests, services, characteristics, device };
 }
 
 test('SP105E continua disponível por seleção explícita; rezar inicia voz/luzes e pausar/ocultar apagam', async () => {
-  const f = fixture();
+  const f = fixture({ legacyControllers: true });
+  assert.equal(f.$('advanced-controller').hidden, false);
+  assert.equal(f.$('profile-sp105e').hidden, false);
+  assert.equal(f.$('profile-sp105e').disabled, false);
   f.$('connect').onclick();
   f.$('light-profile').value = 'sp105e'; f.$('light-profile').onchange();
   f.$('pair').onclick(); await tick();
+  assert.equal(f.$('sp105e-test').hidden, false);
   assert.equal(f.writes.length, 0);
   assert.equal(f.$('sp-start').disabled, false);
   f.$('sp-start').onclick(); await tick();
@@ -86,6 +95,88 @@ test('SP105E continua disponível por seleção explícita; rezar inicia voz/luz
   assert.equal(f.$('play-label').textContent, 'Continuar oração');
   assert.deepEqual(f.writes.at(-1), [0x38, 0, 0, 0, 0x1e]);
   assert.ok(f.writes.every(bytes => bytes.length === 5 && bytes[4] === 0x1e));
+});
+
+test('lançamento oculta os perfis antigos no HTML e carrega a flag antes do app', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../dist/index.html'), 'utf8');
+  assert.match(html, /<details id="advanced-controller"[^>]* hidden>/);
+  assert.match(html, /<section id="sp105e-test"[^>]* hidden>/);
+  assert.match(html, /<section id="board-test"[^>]* hidden>/);
+  for (const profile of ['sp105e', 'nucleo']) {
+    assert.match(html, new RegExp('<option id="profile-' + profile + '"[^>]* hidden disabled>'));
+  }
+  assert.ok(html.indexOf('src="config.js?') < html.indexOf('src="app.js?'));
+  assert.doesNotMatch(html.match(/<div id="native-help"[\s\S]*?<\/div>/)[0], /SP105E|p2p|Outros controladores/);
+  for (const options of [{}, { legacyControllers: false }, { withoutConfig: true }, { legacyControllers: 'true' }]) {
+    const f = fixture(options);
+    f.$('connect').onclick();
+    assert.equal(f.$('advanced-controller').hidden, true);
+    assert.equal(f.$('light-profile').disabled, true);
+    assert.equal(f.$('profile-sp105e').disabled, true);
+    assert.equal(f.$('profile-sp105e').hidden, true);
+    assert.equal(f.$('profile-nucleo').disabled, true);
+    assert.equal(f.$('profile-nucleo').hidden, true);
+    assert.equal(f.$('sp105e-test').hidden, true);
+    assert.equal(f.$('board-test').hidden, true);
+    assert.equal(f.$('strand-test').hidden, false);
+    assert.equal(f.$('pair-all').hidden, true);
+    assert.equal(f.requests.length, 0);
+  }
+});
+
+test('flag false ignora seleção legada restaurada ou alterada e preserva o teste das 59 contas TercoBLE', async () => {
+  for (const profile of ['sp105e', 'nucleo']) {
+    const f = fixture({ legacyControllers: false, restoredProfile: profile, properties: { write: true } });
+    assert.equal(f.$('light-profile').value, 'terco');
+    f.$('light-profile').value = profile; f.$('light-profile').onchange();
+    assert.equal(f.$('light-profile').value, 'terco');
+    // Mesmo sem onchange, a entrada de conexão deve respeitar o escopo de lançamento.
+    f.$('light-profile').value = profile;
+    f.$('pair').onclick(); await tick();
+    assert.equal(f.$('selected-controller').textContent, 'STM32 · TercoBLE');
+    assert.deepEqual(f.services, ['8ec90001-f315-4f60-9fb8-838830daea50']);
+    assert.deepEqual(f.characteristics, ['8ec90002-f315-4f60-9fb8-838830daea50']);
+    assert.notEqual(f.requests[0].acceptAllDevices, true);
+    for (const bead of [1, 34, 35, 59]) {
+      f.$('test-bead').value = String(bead); f.$('test-on').onclick(); await tick();
+      assert.deepEqual(f.writes.at(-1), [1, 1, bead - 1, 32, 255, 180, 82, 0]);
+    }
+    f.$('test-off').onclick(); await tick();
+    assert.deepEqual(f.writes.at(-1), [1, 0, 255, 32, 255, 180, 82, 0]);
+    f.$('lights').close(); await tick();
+    assert.deepEqual(f.writes.at(-1), [1, 1, 1, 32, 255, 180, 82, 0]);
+    f.$('play').onclick(); await tick();
+    assert.equal(f.spoken.length, 1);
+    assert.equal(f.$('play-label').textContent, 'Pausar');
+    f.$('play').onclick(); await tick();
+    assert.ok(f.writes.every(bytes => bytes.length === 8));
+    assert.ok(f.writeModes.every(mode => mode === 'withResponse'));
+  }
+});
+
+test('flag true mantém o fluxo NUCLEO p2p, com comandos do LED azul e retorno à STM32', async () => {
+  const f = fixture({ legacyControllers: true });
+  assert.equal(f.$('advanced-controller').hidden, false);
+  assert.equal(f.$('light-profile').disabled, false);
+  assert.equal(f.$('profile-nucleo').hidden, false);
+  assert.equal(f.$('profile-nucleo').disabled, false);
+  f.$('connect').onclick();
+  f.$('light-profile').value = 'nucleo'; f.$('light-profile').onchange();
+  assert.equal(f.$('board-test').hidden, false);
+  assert.equal(f.$('strand-test').hidden, true);
+  f.$('pair').onclick(); await tick();
+  assert.deepEqual(f.services, ['0000fe40-cc7a-482a-984a-7f2ed5b3e58f']);
+  assert.deepEqual(f.characteristics, ['0000fe41-8e22-4541-9d4c-21edae82ed19']);
+  assert.equal(f.$('board-on').disabled, false);
+  f.$('board-on').onclick(); await tick(); assert.deepEqual(f.writes.at(-1), [1, 1]);
+  f.$('board-off').onclick(); await tick(); assert.deepEqual(f.writes.at(-1), [1, 0]);
+  f.$('lights').close(); await tick(); assert.deepEqual(f.writes.at(-1), [1, 0]);
+  assert.ok(f.writes.every(bytes => bytes.length === 2));
+  assert.ok(f.writeModes.every(mode => mode === 'withoutResponse'));
+  f.$('pair').onclick(); await tick();
+  f.$('connect').onclick();
+  assert.equal(f.$('light-profile').value, 'terco');
+  assert.equal(f.$('strand-test').hidden, false);
 });
 
 test('entrada principal usa TercoBLE mesmo após seleção antiga restaurada e testa acender/apagar com resposta', async () => {
