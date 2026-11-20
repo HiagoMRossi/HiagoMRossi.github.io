@@ -9,14 +9,14 @@
   <meta name="description" content="Terço guiado por voz com 34 LEDs controlados pela STM32 e firmware TercoBLE.">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20rx%3D%228%22%20fill%3D%22%23111b2f%22%2F%3E%3Ccircle%20cx%3D%2216.0%22%20cy%3D%2220.7%22%20r%3D%221.9%22%20fill%3D%22%23ffe3a0%22%2F%3E%3Ccircle%20cx%3D%2211.9%22%20cy%3D%2219.6%22%20r%3D%221.9%22%20fill%3D%22%23ffe3a0%22%2F%3E%3Ccircle%20cx%3D%228.9%22%20cy%3D%2216.6%22%20r%3D%221.9%22%20fill%3D%22%23ffe3a0%22%2F%3E%3Ccircle%20cx%3D%227.8%22%20cy%3D%2212.5%22%20r%3D%221.9%22%20fill%3D%22%23ffe3a0%22%2F%3E%3Ccircle%20cx%3D%228.9%22%20cy%3D%228.4%22%20r%3D%221.9%22%20fill%3D%22%23ffe3a0%22%2F%3E%3Ccircle%20cx%3D%2211.9%22%20cy%3D%225.4%22%20r%3D%221.9%22%20fill%3D%22%234a5878%22%2F%3E%3Ccircle%20cx%3D%2216.0%22%20cy%3D%224.3%22%20r%3D%221.9%22%20fill%3D%22%234a5878%22%2F%3E%3Ccircle%20cx%3D%2220.1%22%20cy%3D%225.4%22%20r%3D%221.9%22%20fill%3D%22%234a5878%22%2F%3E%3Ccircle%20cx%3D%2223.1%22%20cy%3D%228.4%22%20r%3D%221.9%22%20fill%3D%22%234a5878%22%2F%3E%3Ccircle%20cx%3D%2224.2%22%20cy%3D%2212.5%22%20r%3D%221.9%22%20fill%3D%22%234a5878%22%2F%3E%3Ccircle%20cx%3D%2223.1%22%20cy%3D%2216.6%22%20r%3D%221.9%22%20fill%3D%22%234a5878%22%2F%3E%3Ccircle%20cx%3D%2220.1%22%20cy%3D%2219.6%22%20r%3D%221.9%22%20fill%3D%22%234a5878%22%2F%3E%3Cpath%20d%3D%22M15%2020.5h2v9h-2zM12.5%2023h7v2h-7z%22%20fill%3D%22%23ffe3a0%22%2F%3E%3C%2Fsvg%3E">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="style.css?v=0.4.3">
-  <script src="config.js?v=0.4.3" defer></script>
-  <script src="core.js?v=0.4.3" defer></script>
-  <script src="bluetooth.js?v=0.4.3" defer></script>
-  <script src="guided-lights.js?v=0.4.3" defer></script>
-  <script src="wake-lock.js?v=0.4.3" defer></script>
-  <script src="pwa.js?v=0.4.3" defer></script>
-  <script src="app.js?v=0.4.3" defer></script>
+  <link rel="stylesheet" href="style.css?v=0.4.4">
+  <script src="config.js?v=0.4.4" defer></script>
+  <script src="core.js?v=0.4.4" defer></script>
+  <script src="bluetooth.js?v=0.4.4" defer></script>
+  <script src="guided-lights.js?v=0.4.4" defer></script>
+  <script src="wake-lock.js?v=0.4.4" defer></script>
+  <script src="pwa.js?v=0.4.4" defer></script>
+  <script src="app.js?v=0.4.4" defer></script>
 </head>
 <body>
 <main class="app">
@@ -36,7 +36,7 @@
   <section id="completion" class="completion" hidden><div aria-hidden="true">✦</div><h2>Terço concluído.</h2><p>Que a paz acompanhe o seu dia.</p><button id="again" class="text-button">Rezar novamente</button></section>
   <footer class="controls"><div class="player"><button id="previous" class="icon-button" aria-label="Oração anterior"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5v14M18 5l-9 7 9 7z"/></svg></button><button id="play" class="play-button"><span id="play-symbol" aria-hidden="true">▶</span><span id="play-label">Iniciar terço</span></button><button id="next" class="icon-button" aria-label="Próxima oração"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 5v14M6 5l9 7-9 7z"/></svg></button></div><p id="player-hint">Voz em português · Avanço automático</p></footer>
 </main>
-<dialog id="settings"><form method="dialog"><div class="dialog-header"><h2>Do seu jeito.</h2><button class="icon-button" aria-label="Fechar ajustes">✕</button></div></form><label class="setting">Velocidade da voz <output id="rate-label">0,85×</output><input id="rate" type="range" min="0.65" max="1.15" step="0.05" value="0.85"></label><label class="setting">Brilho das contas · STM32 <output id="brightness-label">50%</output><input id="brightness" type="range" min="1" max="100" value="50"></label><p class="small">O brilho é limitado nesta versão de bancada. Ao retomar, a frase interrompida começa de novo.</p><button id="effect" class="secondary-button">Ver efeito de encerramento</button><button id="reset" class="text-button danger">Recomeçar este terço</button><p class="small">Esta versão pausa ao sair do aplicativo. Use com a tela aberta. O progresso fica salvo neste aparelho.</p><div id="native-help" class="help"><strong>Conectar ao terço físico</strong><p>Use Conectar STM32 e escolha TercoBLE para acompanhar as contas com o cordão de 34 LEDs. Você pode testar primeiro o LED azul da placa. Esta versão usa a STM32 com firmware TercoBLE.</p></div><button id="install-voice" class="text-button" hidden>Configurar voz em português</button><p class="version">LUMEN · PROTÓTIPO 0.4.3</p></dialog>
+<dialog id="settings"><form method="dialog"><div class="dialog-header"><h2>Do seu jeito.</h2><button class="icon-button" aria-label="Fechar ajustes">✕</button></div></form><label class="setting">Velocidade da voz <output id="rate-label">0,85×</output><input id="rate" type="range" min="0.65" max="1.15" step="0.05" value="0.85"></label><label class="setting">Brilho das contas · STM32 <output id="brightness-label">50%</output><input id="brightness" type="range" min="1" max="100" value="50"></label><p class="small">O brilho é limitado nesta versão de bancada. Ao retomar, a frase interrompida começa de novo.</p><button id="effect" class="secondary-button">Ver efeito de encerramento</button><button id="reset" class="text-button danger">Recomeçar este terço</button><p class="small">Esta versão pausa ao sair do aplicativo. Use com a tela aberta. O progresso fica salvo neste aparelho.</p><div id="native-help" class="help"><strong>Conectar ao terço físico</strong><p>Use Conectar STM32 e escolha TercoBLE para acompanhar as contas com o cordão de 34 LEDs. Você pode testar primeiro o LED azul da placa. Esta versão usa a STM32 com firmware TercoBLE.</p></div><button id="install-voice" class="text-button" hidden>Configurar voz em português</button><p class="version">LUMEN · PROTÓTIPO 0.4.4</p></dialog>
 <dialog id="lights"><form method="dialog"><div class="dialog-header"><h2 id="lights-title">Conectar STM32</h2><button class="icon-button" aria-label="Fechar controles de luz">✕</button></div></form>
   <p class="small">A oração fica pausada enquanto você testa as luzes.</p>
   <div class="controller-choice"><span class="eyebrow">CONTROLADOR</span><strong id="selected-controller">STM32 · TercoBLE</strong></div>

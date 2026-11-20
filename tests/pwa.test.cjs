@@ -43,8 +43,8 @@ test('ícones PNG 192, 512 e maskable existem e contêm pixels nas dimensões de
 });
 
 test('precache versionado referencia arquivos existentes e todos os recursos locais do HTML/manifest', () => {
-  assert.equal(CACHE_NAME, 'lumen-v0.4.3');
-  assert.match(read('index.html'), /PROTÓTIPO 0\.4\.3/);
+  assert.equal(CACHE_NAME, 'lumen-v0.4.4');
+  assert.match(read('index.html'), /PROTÓTIPO 0\.4\.4/);
   const base = 'https://example.test/lumen/';
   const urls = new Set(APP_SHELL.map(file => new URL(file, base).href));
   assert.equal(urls.size, APP_SHELL.length);
@@ -129,8 +129,8 @@ test('arquivos do shell são servidos do cache, inclusive em subpasta, sem rede'
 
 test('falta no cache recorre à rede somente para arquivo do shell', async () => {
   const f = workerFixture();
-  assert.equal(await f.request('./app.js?v=0.4.3'), f.networkResponse);
-  assert.deepEqual(f.fetched, [f.base + 'app.js?v=0.4.3']);
+  assert.equal(await f.request('./app.js?v=0.4.4'), f.networkResponse);
+  assert.deepEqual(f.fetched, [f.base + 'app.js?v=0.4.4']);
 });
 
 test('worker nunca intercepta não-GET, outra origem nem caminhos/versões fora do shell', () => {

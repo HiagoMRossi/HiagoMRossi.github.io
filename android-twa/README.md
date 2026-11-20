@@ -5,7 +5,7 @@ Projeto local baseado na estrutura Bubblewrap do Findly, lida como referência. 
 - Lançamento: **STM32/TercoBLE somente**, com `dist/config.js` usando `legacyControllers: false`.
 - TWA: a interface, a voz e o Web Bluetooth são executados pelo Chrome Android. Não há WebView nem implementação da ponte `NativeTerco` neste wrapper. O fallback é Custom Tabs; outros navegadores precisam ser validados antes de prometer suporte a BLE.
 - Gradle **8.11.1**, Android Gradle Plugin **8.9.1**, Android Browser Helper **2.7.4**; compile/target SDK **36**; minSdk **29 (Android 10)**, como na referência Findly. O mínimo não comprova compatibilidade de um navegador/aparelho específico.
-- Versão inicial **0.4.3**, `versionCode: 1`. Nome e launcher: **Lumen**. Cores `#f6f3eb` do manifesto web.
+- Versão inicial **0.4.4**, `versionCode: 1`. Nome e launcher: **Lumen**. Cores `#f6f3eb` do manifesto web.
 - Sem permissões Bluetooth no manifesto do wrapper. O Chrome pede ao usuário acesso ao dispositivo Bluetooth e pode depender das permissões Android do próprio navegador. Sem delegação de notificações ou localização e sem `DelegationService`.
 
 ## Configuração pendente
