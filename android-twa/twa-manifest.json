@@ -30,7 +30,7 @@
   "_todo": {
     "packageId": "TODO-confirm: confirmar com.hiagomrossi.lumen antes do primeiro envio a Play.",
     "host": "Alvo local: hiagomrossi.github.io (GitHub Pages user site na raiz). Repo ainda NAO criado nem publicado — Hiago cria HiagoMRossi.github.io e ativa Pages. SHA de assetlinks ainda e placeholder.",
-    "icons": "PLACEHOLDER: substituir os icones web, mipmaps e splash antes da publicacao.",
+    "icons": "Icone final B6-progresso (contas acesas mostrando o progresso). Gerado por scripts/generate-lumen-icons.py: icones web, mipmaps legados, adaptive icon (anydpi-v26) e splash.",
     "signing": "Sem chave configurada. Usar ambiente ou keystore.properties local; ver README.md."
   }
 }
